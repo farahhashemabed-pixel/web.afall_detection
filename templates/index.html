@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام مراقبة كبار السن - ElderCare</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <!-- ==================== Navbar ==================== -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="navbar-logo">
+                <i class="fas fa-heartbeat"></i>
+                <span>ElderCare</span>
+            </div>
+            <div class="navbar-status">
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span>النظام نشط</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ==================== Main Container ==================== -->
+    <div class="container">
+        <!-- ==================== Header ==================== -->
+        <div class="header">
+            <div class="header-content">
+                <div class="header-icon">🏥</div>
+                <h1>نظام مراقبة كبار السن</h1>
+                <p>تقنية ذكية لكشف الوضعيات وتنبيهات السقوط</p>
+                
+                <div class="header-stats">
+                    <div class="stat-box">
+                        <div class="stat-number">4</div>
+                        <div class="stat-label">وضعيات مكتشفة</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number">98%</div>
+                        <div class="stat-label">دقة النموذج</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number">AI</div>
+                        <div class="stat-label">ذكاء اصطناعي</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number">24/7</div>
+                        <div class="stat-label">متاح دائماً</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== Content ==================== -->
+        <div class="content">
+            <!-- Error Box -->
+            <div class="error-box" id="errorDiv">
+                <i class="fas fa-exclamation-circle"></i>
+                <div class="error-box-content">
+                    <div class="error-box-title">خطأ</div>
+                    <div class="error-box-message" id="errorMessage"></div>
+                </div>
+            </div>
+
+            <!-- Upload Section -->
+            <div class="upload-section">
+                <div class="section-title">
+                    <i class="fas fa-image"></i>
+                    تحميل الصورة
+                </div>
+
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.gif,.bmp,.mp4,.avi,.mov,.mkv,video/*" />
+                    <label for="fileInput" class="file-input-label" id="fileLabel">
+                        <div class="upload-icon">📤</div>
+                        <p class="main-text">اضغط هنا أو اسحب صورة أو فيديو</p>
+                        <p class="sub-text">صور: PNG, JPG, JPEG, GIF, BMP - فيديو: MP4, AVI, MOV, MKV</p>
+                    </label>
+                    <div class="file-name" id="fileName">
+                        <i class="fas fa-check-circle"></i>
+                        <span id="fileNameText"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== IMAGE PREVIEW ==================== -->
+            <div class="image-preview-container" id="imagePreviewContainer" style="display: none;">
+                <div class="preview-title">
+                    <i class="fas fa-image"></i>
+                    معاينة الصورة المرفوعة
+                </div>
+                <div class="preview-content">
+                    <img id="imagePreview" class="preview-image" />
+                </div>
+            </div>
+
+            <!-- Features -->
+            <div class="features">
+                <strong style="color: var(--dark);">✨ مميزات النظام:</strong>
+                <div class="features-grid">
+                    <div class="feature-item">
+                        <i class="fas fa-brain"></i>
+                        <span>ذكاء اصطناعي متقدم</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-bolt"></i>
+                        <span>معالجة سريعة</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-bell"></i>
+                        <span>تنبيهات فورية</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>آمن وموثوق</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="btn-group">
+                <button class="btn btn-predict" id="predictBtn" disabled>
+                    <i class="fas fa-wand-magic-sparkles"></i>
+                    <span>تحليل الصورة</span>
+                </button>
+                <button class="btn btn-reset" id="resetBtn" style="display: none;">
+                    <i class="fas fa-rotate-left"></i>
+                    <span>صورة جديدة</span>
+                </button>
+            </div>
+
+            <!-- Loader -->
+            <div class="loader" id="loader">
+                <div class="spinner"></div>
+                <p class="loader-text">⏳ جاري تحليل الصورة...</p>
+            </div>
+
+            <!-- Result -->
+            <div class="result-container" id="resultContainer">
+                <div class="result-card" id="resultCard">
+                    <div class="result-header">
+                        <div class="result-icon" id="resultIcon"></div>
+                        <div class="result-info">
+                            <h3 id="resultTitle"></h3>
+                            <p id="resultSubtitle"></p>
+                        </div>
+                    </div>
+
+                    <div class="result-details">
+                        <div class="detail-item">
+                            <div class="detail-label">📍 الوضعية المكتشفة</div>
+                            <div class="detail-value" id="posture">-</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">🎯 درجة الثقة</div>
+                            <div class="detail-value" id="confidence">-</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">⚠️ حالة التنبيه</div>
+                            <div class="detail-value" id="alertStatus">-</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">📷 عدد الفريمات المحللة (للفيديو)</div>
+                            <div class="detail-value" id="framesCount">-</div>
+                        </div>
+                        <div class="detail-item" id="videoEventsContainer" style="margin-top: 10px; display: none;">
+                            <div class="detail-label">🧾 تفاصيل الفريمات</div>
+                            <div class="detail-value">
+                                <ul id="videoEventsList"></ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="confidence-section">
+                        <div class="confidence-label">
+                            <strong>📊 مستوى الثقة</strong>
+                            <span class="confidence-value" id="confidencePercent">0%</span>
+                        </div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" id="confidenceFill" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="detail-item" style="margin-top: 20px; border-left: 4px solid var(--primary);">
+                        <div class="detail-label">📋 التفاصيل</div>
+                        <div style="margin-top: 10px; color: var(--dark); line-height: 1.6;">
+                            <p id="description"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== VIDEO FRAMES GALLERY ==================== -->
+            <div class="result-container" id="framesGalleryContainer" style="display: none;">
+                <div class="result-card">
+                    <div class="result-header">
+                        <div class="result-icon">📷</div>
+                        <div class="result-info">
+                            <h3>الفريمات الملتقطة من الفيديو</h3>
+                            <p>صور مأخوذة كل عدة ثوانٍ من الفيديو المعروض</p>
+                        </div>
+                    </div>
+                    <div class="result-details">
+                        <div class="frames-grid" id="framesGallery"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-links">
+                <a href="#"><i class="fas fa-info-circle"></i> حول</a>
+                <a href="#"><i class="fas fa-headset"></i> الدعم</a>
+                <a href="#"><i class="fas fa-shield-alt"></i> الخصوصية</a>
+                <a href="#"><i class="fas fa-file-contract"></i> الشروط</a>
+            </div>
+            <p>🏥 نظام مراقبة كبار السن © 2026 | تم تطويره بحب ❤️</p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
