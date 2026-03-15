@@ -212,8 +212,9 @@ def predict_video():
 
                     print(f'🎞️ فريم عند الثانية ~{frame_index / fps:.1f}: {posture} ({confidence * 100:.2f}%)')
 
-                    # تحويل الفريم إلى Base64 للعرض في الواجهة
-                    success, buf = cv2.imencode('.jpg', frame)
+                    # تحويل الفريم إلى Base64 للعرض في الواجهة مع ضغط عالي جداً لتجنب خطأ Message too long
+                    # نستخدم جودة 30% لتقليل حجم البيانات التي يتم إرسالها في الاستجابة
+                    success, buf = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 30])
                     image_b64 = None
                     if success:
                         image_b64 = base64.b64encode(buf.tobytes()).decode('utf-8')
@@ -273,6 +274,13 @@ def predict_video():
                 'events': detected_events,
                 'frames_count': len(detected_events)
             }
+
+            # إذا كان عدد الأحداث كبيراً جداً، نكتفي بأهم الأحداث لتجنب تجاوز حدود الشبكة في السيرفرات المجانية
+            if len(detected_events) > 15:
+                # نحتفظ بصور أحداث السقوط فقط ونلغي صور المشي العادي لتقليل الحجم
+                for event in detected_events:
+                    if event['posture'] not in ['سقوط', 'ممدد']:
+                        event['image_data'] = None 
 
             print(f'📤 نتيجة تحليل الفيديو: {response_data}')
             return jsonify(response_data), 200
