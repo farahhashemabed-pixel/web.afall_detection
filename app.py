@@ -2,10 +2,6 @@ from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 import os
 import sys
-import codecs
-if sys.stdout.encoding != 'utf-8':
-    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.detach() if hasattr(sys.stdout, 'detach') else sys.stdout.buffer)
-    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.detach() if hasattr(sys.stderr, 'detach') else sys.stderr.buffer)
 
 from predict_posture import PosturePredictor
 from datetime import datetime
