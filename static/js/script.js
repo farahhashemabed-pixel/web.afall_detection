@@ -22,6 +22,7 @@ const webcamVideo = document.getElementById('webcamVideo');
 const captureCanvas = document.getElementById('captureCanvas');
 const cameraPlaceholder = document.getElementById('cameraPlaceholder');
 const cameraStatusText = document.getElementById('cameraStatusText');
+const cameraOverlay = document.getElementById('cameraOverlay');
 
 let cameraStream = null;
 let captureInterval = null;
@@ -57,9 +58,23 @@ if (modeUploadBtn && modeCameraBtn) {
 }
 
 // ==================== 2. معالجة المراقبة الحية (الكاميرا) ====================
+let isAnalyzing = false;
+
 startCameraBtn.addEventListener('click', async () => {
     try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+        // الكاميرا الخلفية "environment" وعدم قلب الصورة
+        cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } });
+    } catch (err) {
+        try {
+            // بديل: أي كاميرا خلفية متاحة
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        } catch (err2) {
+            // بديل أخير: أي كاميرا
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
+    }
+    
+    try {
         webcamVideo.srcObject = cameraStream;
         webcamVideo.style.display = 'block';
         cameraPlaceholder.style.display = 'none';
@@ -67,16 +82,19 @@ startCameraBtn.addEventListener('click', async () => {
         startCameraBtn.style.display = 'none';
         stopCameraBtn.style.display = 'flex';
         cameraStatusText.style.display = 'block';
+        cameraOverlay.style.display = 'block';
+        cameraOverlay.textContent = 'جاري التحليل...';
         
         isCameraMonitoring = true;
+        isAnalyzing = false;
         resultContainer.classList.remove('show');
         errorDiv.classList.remove('show');
         
-        // التقاط فريم كل ثانيتين (2000 مللي ثانية) وارسالها للتحليل
-        captureInterval = setInterval(captureAndAnalyzeFrame, 2000); 
+        // بدء حلقة التحليل المباشر بطريقة تمنع تداخل الطلبات إذا كان الإنترنت بطيئاً
+        captureAndAnalyzeFrame();
         
     } catch (err) {
-        showError('فشل الوصول للكاميرا: الرجاء إعطاء الصلاحية أو استخدام اتصال آمن (HTTPS).');
+        showError('فشل عرض الكاميرا.');
         console.error(err);
     }
 });
@@ -89,11 +107,12 @@ function stopCamera() {
     if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop());
     }
-    clearInterval(captureInterval);
     isCameraMonitoring = false;
+    isAnalyzing = false;
     
     webcamVideo.style.display = 'none';
     cameraPlaceholder.style.display = 'block';
+    cameraOverlay.style.display = 'none';
     
     startCameraBtn.style.display = 'flex';
     stopCameraBtn.style.display = 'none';
@@ -101,8 +120,14 @@ function stopCamera() {
 }
 
 async function captureAndAnalyzeFrame() {
-    if (!isCameraMonitoring || webcamVideo.videoWidth === 0) return;
+    if (!isCameraMonitoring) return;
     
+    if (webcamVideo.videoWidth === 0 || isAnalyzing) {
+        setTimeout(captureAndAnalyzeFrame, 500);
+        return;
+    }
+    
+    isAnalyzing = true;
     const context = captureCanvas.getContext('2d');
     captureCanvas.width = webcamVideo.videoWidth;
     captureCanvas.height = webcamVideo.videoHeight;
@@ -121,9 +146,23 @@ async function captureAndAnalyzeFrame() {
             const data = await response.json();
             if (response.ok) {
                 displayResult(data);
+                
+                // تحديث الشاشة العائمة على الكاميرا للنتيجة الفورية
+                cameraOverlay.textContent = `النتيجة المباشرة: ${data.posture} (${data.confidence})`;
+                if (data.is_alert) {
+                    cameraOverlay.style.background = 'rgba(239, 68, 68, 0.9)'; // أحمر
+                } else {
+                    cameraOverlay.style.background = 'rgba(16, 185, 129, 0.9)'; // أخضر
+                }
             }
         } catch (err) {
             console.error("Camera analysis error:", err);
+        } finally {
+            isAnalyzing = false;
+            // تحليل الفريم التالي بعد ثانية واحدة لمنع الضغط على السيرفر
+            if (isCameraMonitoring) {
+                setTimeout(captureAndAnalyzeFrame, 1000);
+            }
         }
     }, 'image/jpeg', 0.8);
 }
