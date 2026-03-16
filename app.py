@@ -187,8 +187,8 @@ def predict_video():
             if fps <= 0:
                 fps = 25
 
-            # أخذ فريم كل 3 ثواني تقريباً
-            frame_interval = max(int(fps * 3), 1)
+            # أخذ فريم كل 0.5 ثانية لتحسين دقة اكتشاف السقوط السريع
+            frame_interval = max(int(fps * 0.5), 1)
             frame_index = 0
             
             detected_events = []
@@ -202,7 +202,7 @@ def predict_video():
                     break
 
                 if frame_index % frame_interval == 0:
-                    # حفظ الفريم مؤقتاً والتحليل
+                    # حفظ الفريم كصورة ثم تحليله تماماً كما يحدث مع الصور المرفوعة كما طلب المستخدم
                     cv2.imwrite(temp_frame_path, frame)
                     posture, confidence = predictor.predict_image(temp_frame_path)
 

@@ -61,10 +61,21 @@ class PosturePredictor:
             self.dummy_mode = True
             self.classes = np.array(['جالس', 'واقف', 'ممدد', 'سقوط'])
     
-    def detect_body_parts(self, image_path):
-        """كشف أجزاء الجسم"""
+    def detect_body_parts(self, image_input):
+        """كشف أجزاء الجسم من مسار أو مصفوفة"""
         try:
-            img = cv2.imread(image_path)
+            if isinstance(image_input, str):
+                img = cv2.imread(image_input)
+            else:
+                img = image_input
+            return self._detect_body_parts_internal(img)
+        except Exception as e:
+            safe_print(f"Error in body detection: {e}")
+            return None
+
+    def _detect_body_parts_internal(self, img):
+        """كشف أجزاء الجسم للمصفوفة مباشرة"""
+        try:
             if img is None:
                 return None
             
@@ -110,18 +121,28 @@ class PosturePredictor:
             
             return body_info
         
-        except Exception as e:
-            safe_print(f"Error in body detection: {e}")
+        except Exception:
             return None
     
-    def analyze_posture_advanced(self, image_path):
-        """تحليل متقدم للوضعية"""
+    def analyze_posture_advanced(self, image_input):
+        """تحليل متقدم للوضعية من مسار أو مصفوفة"""
         try:
-            img = cv2.imread(image_path)
+            if isinstance(image_input, str):
+                img = cv2.imread(image_input)
+            else:
+                img = image_input
+            return self._analyze_posture_advanced_internal(img)
+        except Exception as e:
+            safe_print(f"Error in analysis: {e}")
+            return None, 0
+
+    def _analyze_posture_advanced_internal(self, img):
+        """التحليل المنطقي المتقدم للمصفوفة"""
+        try:
             if img is None:
                 return None, 0
             
-            body_info = self.detect_body_parts(image_path)
+            body_info = self._detect_body_parts_internal(img)
             if body_info is None:
                 return None, 0
             
@@ -134,93 +155,73 @@ class PosturePredictor:
             
             # 1️⃣ نسبة الأبعاد
             aspect_ratio = width / height if height > 0 else 0
-            safe_print(f"Aspect Ratio (AR): {aspect_ratio:.3f}")
             
             # 2️⃣ كشف الحواف
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             edges = cv2.Canny(gray, 50, 150)
             edge_density = np.sum(edges) / (img_height * img_width)
-            safe_print(f"Edge density: {edge_density:.5f}")
             
             # 3️⃣ ارتفاع الجسم مقارنة بارتفاع الصورة
             body_height_ratio = height / img_height
-            safe_print(f"Body height ratio: {body_height_ratio:.3f}")
             
             # 4️⃣ عرض الجسم مقارنة بعرض الصورة
             body_width_ratio = width / img_width
-            safe_print(f"Body width ratio: {body_width_ratio:.3f}")
             
             # 5️⃣ موضع المركز العمودي
             center_y_ratio = body_info['center_y'] / img_height
-            safe_print(f"Center Y ratio: {center_y_ratio:.3f}")
             
             # ==================== قواعد التصنيف المصححة ====================
             
-            safe_print("\n" + "="*50)
-            safe_print("Posture Analysis [Heuristics Mode]:")
-            safe_print("="*50)
-            
-            # **الواقف**: ضيق
+            # **الواقف**: ضيق وطويل
             if aspect_ratio < 0.85 and body_height_ratio > 0.4:
                 posture = 'واقف'
                 confidence = 0.88
-                reason = f"ضيق (AR={aspect_ratio:.2f}) وطويل"
-                safe_print(f"Standing: {reason}")
             
             # **الجالس**: عرض متوسط
-            elif 0.85 <= aspect_ratio < 1.4:
+            elif 0.85 <= aspect_ratio < 1.3:
                 posture = 'جالس'
                 confidence = 0.87
-                reason = f"متوسط (AR={aspect_ratio:.2f})"
-                safe_print(f"Sitting: {reason}")
             
             # **السقوط/ممدد**: عريض جداً
-            elif aspect_ratio >= 1.4:
-                # إذا كان عريض جداً وقصير فهو ممدد، وإلا نعتبره سقوط
-                if body_height_ratio < 0.45:
+            elif aspect_ratio >= 1.3:
+                # إذا كان عريض جداً وقريب من الأرض فهو ممدد
+                if center_y_ratio > 0.6:
                     posture = 'ممدد'
                     confidence = 0.86
-                    reason = f"عريض (AR={aspect_ratio:.2f}) وقصير"
-                    safe_print(f"Lying down: {reason}")
                 else:
                     posture = 'سقوط'
                     confidence = 0.85
-                    reason = f"عريض جداً (AR={aspect_ratio:.2f})"
-                    safe_print(f"Fall detected: {reason}")
             else:
-                # القيمة الافتراضية
                 posture = 'جالس'
                 confidence = 0.70
-                safe_print(f"Sitting (default)")
-            
-            safe_print(f"\nResult: {posture}")
-            safe_print(f"Confidence: {confidence*100:.1f}%")
-            safe_print("="*50 + "\n")
             
             return posture, confidence
         
-        except Exception as e:
-            safe_print(f"Error in analysis: {e}")
-            import traceback
-            traceback.print_exc()
+        except Exception:
             return None, 0
     
-    def predict_image(self, image_path):
-        """التنبؤ بوضعية الشخص"""
+    def predict_image(self, image_input):
+        """التنبؤ بوضعية الشخص - يدعم مسار صورة أو مصفوفة numpy مباشرة"""
         try:
-            img = cv2.imread(image_path)
+            if isinstance(image_input, str):
+                img = cv2.imread(image_input)
+            else:
+                img = image_input
+
             if img is None:
                 return None, 0
             
-            print("\n" + "="*50)
-            safe_print(f"Analyzing image")
-            print("="*50)
+            # print("\n" + "="*50)
+            # safe_print(f"Analyzing image")
+            # print("="*50)
             
             # استخدام النموذج الذكي إذا كان متاحاً
             if not getattr(self, 'dummy_mode', True) and self.model is not None and HAS_TF:
                 try:
                     img_resized = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
-                    img_array = keras.preprocessing.image.img_to_array(img_resized)
+                    # تحويل من BGR إلى RGB لأن النموذج تدرب على RGB
+                    img_rgb = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)
+                    img_array = keras.preprocessing.image.img_to_array(img_rgb)
                     img_array = np.expand_dims(img_array, axis=0)
                     img_array /= 255.0
                     
@@ -235,7 +236,12 @@ class PosturePredictor:
                     safe_print(f"Model prediction failed, falling back to heuristics: {model_err}")
             
             # استخدام التحليل المتقدم كبديل
-            return self.analyze_posture_advanced(image_path)
+            if isinstance(image_input, str):
+                return self.analyze_posture_advanced(image_input)
+            else:
+                # إذا كانت مصفوفة، نحتاج لحفظ مؤقت للهيورستيكس أو تعديلها لتقبل مصفوفة
+                # لتسهيل الأمر حالياً، سنعدل analyze_posture_advanced لتقبل مصفوفة أيضاً
+                return self._analyze_posture_advanced_internal(img)
         
         except Exception as e:
             safe_print(f"Error: {e}")

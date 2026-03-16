@@ -5,7 +5,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers, models
+# Ensure we use standard tf.keras for layers and models
+layers = tf.keras.layers
+models = tf.keras.models
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import pickle
 import warnings
@@ -14,7 +16,7 @@ warnings.filterwarnings('ignore')
 # إعدادات المشروع
 IMG_SIZE = 224
 BATCH_SIZE = 32
-EPOCHS = 20  # عدد الحقب المناسب للبيانات التجريبية
+EPOCHS = 50  # زيادة عدد الحقب لتحسين التعلم بناء على طلب المستخدم
 DATA_PATH = "dataset/data"
 MODEL_PATH = "models/elderly_posture_model.h5"
 LABEL_ENCODER_PATH = "models/label_encoder.pkl"
@@ -118,24 +120,27 @@ class PostureDetectionModel:
             weights='imagenet'
         )
         
-        base_model.trainable = False
+        # السماح بتدريب آخر 30 طبقة من MobileNetV2 لتحسين الدقة (Fine-tuning)
+        base_model.trainable = True
+        for layer in base_model.layers[:-30]:
+            layer.trainable = False
         
         self.model = models.Sequential([
             base_model,
             layers.GlobalAveragePooling2D(),
-            layers.Dense(256, activation='relu'),
+            layers.Dense(512, activation='relu'),
             layers.BatchNormalization(),
             layers.Dropout(0.5),
-            layers.Dense(128, activation='relu'),
+            layers.Dense(256, activation='relu'),
             layers.BatchNormalization(),
+            layers.Dropout(0.4),
+            layers.Dense(128, activation='relu'),
             layers.Dropout(0.3),
-            layers.Dense(64, activation='relu'),
-            layers.Dropout(0.2),
             layers.Dense(len(self.classes), activation='softmax')
         ])
         
         self.model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=0.001),
+            optimizer=keras.optimizers.Adam(learning_rate=0.0001), # تعلم أبطأ للفاين-تيونينج
             loss='categorical_crossentropy',
             metrics=['accuracy']
         )
@@ -146,13 +151,18 @@ class PostureDetectionModel:
         """تدريب النموذج"""
         print("\n⚡ جاري تدريب النموذج...")
         
+        # تحسين التدريب على الصور بشكل أكبر بإضافة المزيد من التعديلات (Data Augmentation) لتشمل تغييرات تشبه إطارات الفيديو
         data_augmentation = ImageDataGenerator(
             rotation_range=30,
-            width_shift_range=0.3,
-            height_shift_range=0.3,
+            width_shift_range=0.2,
+            height_shift_range=0.2,
             horizontal_flip=True,
-            zoom_range=0.3,
-            shear_range=0.2
+            vertical_flip=False,
+            zoom_range=0.3, # تقليل التقريب المفرط الذي قد يشوه الصورة
+            shear_range=0.2,
+            brightness_range=[0.5, 1.5], # مدى أوسع للإضاءة لمحاكاة الفيديوهات بشكل أفضل
+            channel_shift_range=20.0, # تعديل في الألوان لاختلاف الكاميرات
+            fill_mode='nearest'
         )
         
         history = self.model.fit(
