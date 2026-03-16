@@ -292,18 +292,143 @@
         <!-- Footer -->
         <div class="footer">
             <div class="footer-links">
-                <a href="#"><i class="fas fa-info-circle"></i> حول</a>
-                <a href="#"><i class="fas fa-headset"></i> الدعم</a>
-                <a href="#"><i class="fas fa-shield-alt"></i> الخصوصية</a>
-                <a href="#"><i class="fas fa-file-contract"></i> الشروط</a>
+                <a href="#" onclick="openModal('aboutModal')"><i class="fas fa-info-circle"></i> حول</a>
+                <a href="#" onclick="openModal('supportModal')"><i class="fas fa-headset"></i> الدعم</a>
+                <a href="#" onclick="openModal('privacyModal')"><i class="fas fa-shield-alt"></i> الخصوصية</a>
+                <a href="#" onclick="openModal('termsModal')"><i class="fas fa-file-contract"></i> الشروط</a>
             </div>
             <p>🏥 نظام مراقبة كبار السن © 2026 | تم تطويره بواسطة فرح هاشم 👩‍💻</p>
         </div>
     </div>
 
+    <!-- ==================== MODALS ==================== -->
+    <div id="modalOverlay" onclick="closeModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9998; backdrop-filter:blur(4px);"></div>
+
+    <!-- حول -->
+    <div id="aboutModal" class="footer-modal" style="display:none;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+            <span>ℹ️ حول النظام</span>
+            <button onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <h4>🏥 نظام مراقبة كبار السن للكشف عن السقوط</h4>
+            <p>نظام ذكي يعتمد على الرؤية الحاسوبية والذكاء الاصطناعي لمراقبة كبار السن والكشف الفوري عن حالات السقوط أو الأوضاع الخطرة.</p>
+            <hr style="margin: 15px 0; border-color: #e2e8f0;">
+            <p><strong>🤖 النموذج المستخدم:</strong> MobileNetV2 (CNN)</p>
+            <p><strong>📊 الفئات المصنّفة:</strong> واقف — جالس — ممدد — سقوط</p>
+            <p><strong>🎯 دقة النموذج:</strong> أكثر من 95%</p>
+            <p><strong>🌐 تقنيات التطوير:</strong> Python · Flask · TensorFlow · OpenCV</p>
+            <hr style="margin: 15px 0; border-color: #e2e8f0;">
+            <p><strong>👩‍💻 المطورة:</strong> فرح هاشم عبد</p>
+            <p><strong>🎓 الجهة:</strong> جامعة التكنولوجيا — كلية علوم الحاسوب / قسم الذكاء الاصطناعي</p>
+            <p><strong>📅 إصدار:</strong> 2026</p>
+        </div>
+    </div>
+
+    <!-- الدعم -->
+    <div id="supportModal" class="footer-modal" style="display:none;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #0891b2, #06b6d4);">
+            <span>🎧 الدعم الفني</span>
+            <button onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <h4>كيف يمكننا مساعدتك؟</h4>
+            <div style="background:#f0f9ff; border-radius:10px; padding:15px; margin:10px 0;">
+                <p><strong>📌 الاستخدام الأساسي:</strong></p>
+                <p>• <strong>رفع صورة:</strong> اختر وضع "رفع ملف" وارفع صورة أو فيديو للشخص</p>
+                <p>• <strong>كاميرا مباشرة:</strong> اختر "مراقبة بالكاميرا" واضغط تشغيل للمراقبة الفورية</p>
+                <p>• <strong>تنبيه تيليغرام:</strong> أدخل Token و Chat ID من الإعدادات أسفل الصفحة</p>
+            </div>
+            <div style="background:#fef3c7; border-radius:10px; padding:15px; margin:10px 0;">
+                <p><strong>⚠️ إذا لم تعمل الكاميرا:</strong></p>
+                <p>• تأكدي أن الموقع يعمل عبر HTTPS</p>
+                <p>• اضغطي "السماح" عند طلب إذن الكاميرا من المتصفح</p>
+            </div>
+            <div style="background:#f0fdf4; border-radius:10px; padding:15px; margin:10px 0;">
+                <p><strong>📧 للتواصل:</strong> يرجى التواصل مع المطورة عبر الجامعة</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- الخصوصية -->
+    <div id="privacyModal" class="footer-modal" style="display:none;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #059669, #10b981);">
+            <span>🔒 سياسة الخصوصية</span>
+            <button onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <h4>حماية بياناتك أولويتنا</h4>
+            <p><strong>📸 الصور والفيديوهات المرفوعة:</strong><br>يتم تحليلها فورياً ثم حذفها تلقائياً من السيرفر. لا يتم تخزين أي صور.</p>
+            <hr style="margin: 12px 0; border-color: #e2e8f0;">
+            <p><strong>📱 بيانات تيليغرام:</strong><br>يتم حفظ Bot Token و Chat ID على السيرفر الخاص بك فقط ولا يتم مشاركتها مع أي جهة.</p>
+            <hr style="margin: 12px 0; border-color: #e2e8f0;">
+            <p><strong>🎥 الكاميرا المباشرة:</strong><br>بث الكاميرا يُعالج محلياً في المتصفح ويُرسل فريم واحد كل ثانية للتحليل فقط. لا يتم تسجيل الفيديو أو تخزينه.</p>
+            <hr style="margin: 12px 0; border-color: #e2e8f0;">
+            <p><strong>🍪 ملفات الارتباط (Cookies):</strong><br>لا يستخدم هذا النظام أي ملفات تتبع أو إعلانات.</p>
+        </div>
+    </div>
+
+    <!-- الشروط -->
+    <div id="termsModal" class="footer-modal" style="display:none;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #dc2626, #ef4444);">
+            <span>📋 شروط الاستخدام</span>
+            <button onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <h4>يرجى قراءة الشروط قبل الاستخدام</h4>
+            <p><strong>1. الغرض من النظام:</strong><br>هذا النظام مخصص للمراقبة المساعدة فقط وليس بديلاً عن الرعاية الطبية المتخصصة.</p>
+            <hr style="margin: 12px 0; border-color: #e2e8f0;">
+            <p><strong>2. دقة الكشف:</strong><br>النتائج مبنية على الذكاء الاصطناعي وقد لا تكون دقيقة 100%. يجب دائماً التحقق البشري عند أي تنبيه.</p>
+            <hr style="margin: 12px 0; border-color: #e2e8f0;">
+            <p><strong>3. المسؤولية:</strong><br>المطورة غير مسؤولة عن أي قرارات طبية تُتخذ بناءً على نتائج النظام وحده.</p>
+            <hr style="margin: 12px 0; border-color: #e2e8f0;">
+            <p><strong>4. الاستخدام الأكاديمي:</strong><br>هذا المشروع تم تطويره كمشروع تخرج أكاديمي في جامعة التكنولوجيا 2026.</p>
+        </div>
+    </div>
+
+    <style>
+        .footer-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 90%; max-width: 520px; background: white; border-radius: 20px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.3); z-index: 9999;
+            max-height: 85vh; overflow-y: auto; animation: modalIn 0.25s ease;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: translate(-50%, -48%) scale(0.95); }
+            to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 18px 22px; color: white; font-size: 18px; font-weight: bold;
+            border-radius: 20px 20px 0 0;
+        }
+        .modal-header button {
+            background: rgba(255,255,255,0.25); border: none; color: white;
+            width: 32px; height: 32px; border-radius: 50%; font-size: 16px;
+            cursor: pointer; font-weight: bold; transition: background 0.2s;
+        }
+        .modal-header button:hover { background: rgba(255,255,255,0.45); }
+        .modal-body { padding: 22px; color: #374151; line-height: 1.8; font-size: 14.5px; }
+        .modal-body h4 { color: #1e293b; margin-bottom: 14px; font-size: 17px; }
+        .modal-body p { margin-bottom: 8px; }
+    </style>
+
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script>
+        function openModal(id) {
+            document.getElementById('modalOverlay').style.display = 'block';
+            document.getElementById(id).style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+        function closeModal() {
+            document.getElementById('modalOverlay').style.display = 'none';
+            document.querySelectorAll('.footer-modal').forEach(m => m.style.display = 'none');
+            document.body.style.overflow = '';
+        }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
         async function loadTelegramStatus() {
+
             try {
                 const res = await fetch('/api/telegram/settings');
                 const data = await res.json();
