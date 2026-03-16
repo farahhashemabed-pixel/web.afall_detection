@@ -246,6 +246,49 @@
             </div>
         </div>
 
+        <!-- ==================== TELEGRAM SETTINGS ==================== -->
+        <div class="result-container show" style="margin-top: 20px;">
+            <div class="result-card" style="border-top: 4px solid #0088cc;">
+                <div class="result-header">
+                    <div class="result-icon" style="background: linear-gradient(135deg, #0088cc, #00aaff);">📱</div>
+                    <div class="result-info">
+                        <h3>إعدادات تنبيه تيليغرام</h3>
+                        <p>سيصلك تنبيه فوري عند اكتشاف سقوط أو وضعية خطرة</p>
+                    </div>
+                </div>
+                <div class="result-details" style="padding: 20px;">
+                    <div id="telegramStatus" style="padding: 10px; border-radius: 10px; margin-bottom: 15px; text-align: center; font-weight: bold; display: none;"></div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-weight: bold; color: var(--dark); display: block; margin-bottom: 6px;">🔑 Bot Token (من @BotFather)</label>
+                        <input type="password" id="botToken" placeholder="أدخل Bot Token هنا..."
+                            style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; outline: none; box-sizing: border-box; font-family: monospace;" />
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="font-weight: bold; color: var(--dark); display: block; margin-bottom: 6px;">💬 Chat ID (من @userinfobot)</label>
+                        <input type="text" id="chatId" placeholder="مثال: 123456789"
+                            style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; outline: none; box-sizing: border-box;" />
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button onclick="testTelegram()" id="testTelegramBtn"
+                            style="flex: 1; padding: 12px; background: linear-gradient(135deg, #0088cc, #00aaff); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; min-width: 140px;">
+                            🧪 اختبار الاتصال
+                        </button>
+                        <button onclick="saveTelegram()" id="saveTelegramBtn"
+                            style="flex: 1; padding: 12px; background: linear-gradient(135deg, #10b981, #34d399); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; min-width: 140px;">
+                            💾 حفظ الإعدادات
+                        </button>
+                    </div>
+                    <div style="margin-top: 15px; padding: 12px; background: #f0f9ff; border-radius: 10px; font-size: 13px; color: #0369a1; line-height: 1.8;">
+                        <strong>🔧 كيفية الإعداد:</strong><br>
+                        1. افتح تيليغرام وابحث عن <strong>@BotFather</strong><br>
+                        2. أرسله <code>/newbot</code> وأنشئ بوت جديد واحصل على <strong>Token</strong><br>
+                        3. افتح بوتك وابعث له أي رسالة<br>
+                        4. ابحث عن <strong>@userinfobot</strong> وابعث له <code>/start</code> لتحصل على <strong>Chat ID</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Footer -->
         <div class="footer">
             <div class="footer-links">
@@ -259,5 +302,60 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+        async function loadTelegramStatus() {
+            try {
+                const res = await fetch('/api/telegram/settings');
+                const data = await res.json();
+                if (data.configured) {
+                    showTelegramStatus('✅ تيليغرام مُفعّل — Chat ID: ' + data.chat_id, '#d1fae5', '#065f46');
+                    document.getElementById('chatId').value = data.chat_id;
+                }
+            } catch(e) {}
+        }
+
+        async function testTelegram() {
+            const token = document.getElementById('botToken').value.trim();
+            const chatId = document.getElementById('chatId').value.trim();
+            const btn = document.getElementById('testTelegramBtn');
+            if (!token || !chatId) { showTelegramStatus('⚠️ يرجى إدخال Bot Token و Chat ID أولاً', '#fef3c7', '#92400e'); return; }
+            btn.textContent = '⏳ جاري الاختبار...'; btn.disabled = true;
+            try {
+                const res = await fetch('/api/telegram/test', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({bot_token: token, chat_id: chatId})
+                });
+                const data = await res.json();
+                if (res.ok) showTelegramStatus('✅ ' + data.message, '#d1fae5', '#065f46');
+                else showTelegramStatus('❌ ' + data.error, '#fee2e2', '#991b1b');
+            } catch(e) { showTelegramStatus('❌ خطأ في الاتصال', '#fee2e2', '#991b1b'); }
+            btn.textContent = '🧪 اختبار الاتصال'; btn.disabled = false;
+        }
+
+        async function saveTelegram() {
+            const token = document.getElementById('botToken').value.trim();
+            const chatId = document.getElementById('chatId').value.trim();
+            const btn = document.getElementById('saveTelegramBtn');
+            if (!token || !chatId) { showTelegramStatus('⚠️ يرجى إدخال جميع البيانات', '#fef3c7', '#92400e'); return; }
+            btn.textContent = '⏳ جاري الحفظ...'; btn.disabled = true;
+            try {
+                const res = await fetch('/api/telegram/settings', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({bot_token: token, chat_id: chatId})
+                });
+                const data = await res.json();
+                if (res.ok) showTelegramStatus('✅ تم الحفظ! سيصلك تنبيه عند اكتشاف خطر', '#d1fae5', '#065f46');
+                else showTelegramStatus('❌ ' + data.error, '#fee2e2', '#991b1b');
+            } catch(e) { showTelegramStatus('❌ خطأ في الاتصال', '#fee2e2', '#991b1b'); }
+            btn.textContent = '💾 حفظ الإعدادات'; btn.disabled = false;
+        }
+
+        function showTelegramStatus(msg, bg, color) {
+            const s = document.getElementById('telegramStatus');
+            s.style.display = 'block'; s.style.background = bg; s.style.color = color; s.textContent = msg;
+        }
+
+        loadTelegramStatus();
+    </script>
 </body>
-</html>
+</html>

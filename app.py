@@ -4,6 +4,7 @@ import os
 import sys
 
 from predict_posture import PosturePredictor
+from telegram_alert import send_telegram_alert, load_telegram_settings, save_telegram_settings, test_telegram_connection
 from datetime import datetime
 import traceback
 import cv2
@@ -106,12 +107,15 @@ def predict():
                 os.remove(filepath)
             return jsonify({'error': f'خطأ في التنبؤ: {str(predict_error)}'}), 500
         
-        # فحص التنبيهات
+        # فحص التنبيهات وإرسال تيليغرام
         is_alert = posture in ['سقوط', 'ممدد'] and confidence > 0.6
         
         if is_alert:
             print(f"⚠️ تم اكتشاف تنبيه: {posture}")
             send_alert_notification(posture, confidence)
+            # إرسال تنبيه تيليغرام
+            tg_success, tg_msg = send_telegram_alert(posture, confidence * 100)
+            print(f"📱 تيليغرام: {tg_msg}")
         
         # حذف الملف بعد المعالجة
         if os.path.exists(filepath):
@@ -258,6 +262,9 @@ def predict_video():
                 posture = highest_risk['posture']
                 confidence = highest_risk['confidence']
                 description = get_posture_description(posture) + f" (وقت الاكتشاف التقريبي: {highest_risk['time_sec']} ثانية)"
+                # إرسال تنبيه تيليغرام للفيديو
+                tg_success, tg_msg = send_telegram_alert(posture, confidence * 100)
+                print(f"📱 تيليغرام (فيديو): {tg_msg}")
             else:
                 last_event = detected_events[-1]
                 posture = last_event['posture']
@@ -305,6 +312,46 @@ def predict_video():
         print(f"❌ خطأ غير متوقع في تحليل الفيديو: {str(e)}")
         print(traceback.format_exc())
         return jsonify({'error': f'خطأ في معالجة الفيديو: {str(e)}'}), 500
+
+@app.route('/api/telegram/settings', methods=['GET'])
+def get_telegram_settings():
+    """الحصول على إعدادات تيليغرام"""
+    settings = load_telegram_settings()
+    # لا نُرجع التوكن كاملاً للأمان، فقط نُظهر هل هو مضبوط أم لا
+    return jsonify({
+        'configured': bool(settings.get('bot_token') and settings.get('chat_id')),
+        'chat_id': settings.get('chat_id', ''),
+        'has_token': bool(settings.get('bot_token'))
+    }), 200
+
+@app.route('/api/telegram/settings', methods=['POST'])
+def update_telegram_settings():
+    """حفظ إعدادات تيليغرام"""
+    data = request.get_json()
+    bot_token = data.get('bot_token', '').strip()
+    chat_id = data.get('chat_id', '').strip()
+    
+    if not bot_token or not chat_id:
+        return jsonify({'error': 'يرجى إدخال Bot Token و Chat ID'}), 400
+    
+    save_telegram_settings(bot_token, chat_id)
+    return jsonify({'status': 'success', 'message': 'تم حفظ الإعدادات'}), 200
+
+@app.route('/api/telegram/test', methods=['POST'])
+def test_telegram():
+    """اختبار الاتصال بتيليغرام وإرسال رسالة تجريبية"""
+    data = request.get_json()
+    bot_token = data.get('bot_token', '').strip()
+    chat_id = data.get('chat_id', '').strip()
+    
+    if not bot_token or not chat_id:
+        return jsonify({'error': 'يرجى إدخال البيانات أولاً'}), 400
+    
+    success, message = test_telegram_connection(bot_token, chat_id)
+    if success:
+        return jsonify({'status': 'success', 'message': message}), 200
+    else:
+        return jsonify({'error': message}), 400
 
 
 @app.route('/api/health', methods=['GET'])
