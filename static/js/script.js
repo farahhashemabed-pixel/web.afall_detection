@@ -11,11 +11,124 @@ const resultCard = document.getElementById('resultCard');
 const errorDiv = document.getElementById('errorDiv');
 const errorMessage = document.getElementById('errorMessage');
 
+// Camera Elements
+const modeUploadBtn = document.getElementById('modeUploadBtn');
+const modeCameraBtn = document.getElementById('modeCameraBtn');
+const uploadSection = document.getElementById('uploadSection');
+const cameraSection = document.getElementById('cameraSection');
+const startCameraBtn = document.getElementById('startCameraBtn');
+const stopCameraBtn = document.getElementById('stopCameraBtn');
+const webcamVideo = document.getElementById('webcamVideo');
+const captureCanvas = document.getElementById('captureCanvas');
+const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+const cameraStatusText = document.getElementById('cameraStatusText');
+
+let cameraStream = null;
+let captureInterval = null;
+let isCameraMonitoring = false;
+
 // ==================== Image Preview Elements ====================
 const imagePreviewContainer = document.getElementById('imagePreviewContainer');
 const imagePreview = document.getElementById('imagePreview');
 
-// ==================== 1. معالجة تحميل الملف (صورة / فيديو) ====================
+// ==================== 1. تبديل وضعيات الرفع والمراقبة ====================
+if (modeUploadBtn && modeCameraBtn) {
+    modeUploadBtn.addEventListener('click', () => {
+        modeUploadBtn.classList.replace('btn-reset', 'btn-predict');
+        modeUploadBtn.classList.add('active');
+        modeCameraBtn.classList.replace('btn-predict', 'btn-reset');
+        modeCameraBtn.classList.remove('active');
+        
+        uploadSection.style.display = 'block';
+        cameraSection.style.display = 'none';
+        
+        if (isCameraMonitoring) stopCamera();
+    });
+
+    modeCameraBtn.addEventListener('click', () => {
+        modeCameraBtn.classList.replace('btn-reset', 'btn-predict');
+        modeCameraBtn.classList.add('active');
+        modeUploadBtn.classList.replace('btn-predict', 'btn-reset');
+        modeUploadBtn.classList.remove('active');
+        
+        uploadSection.style.display = 'none';
+        cameraSection.style.display = 'block';
+    });
+}
+
+// ==================== 2. معالجة المراقبة الحية (الكاميرا) ====================
+startCameraBtn.addEventListener('click', async () => {
+    try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+        webcamVideo.srcObject = cameraStream;
+        webcamVideo.style.display = 'block';
+        cameraPlaceholder.style.display = 'none';
+        
+        startCameraBtn.style.display = 'none';
+        stopCameraBtn.style.display = 'flex';
+        cameraStatusText.style.display = 'block';
+        
+        isCameraMonitoring = true;
+        resultContainer.classList.remove('show');
+        errorDiv.classList.remove('show');
+        
+        // التقاط فريم كل ثانيتين (2000 مللي ثانية) وارسالها للتحليل
+        captureInterval = setInterval(captureAndAnalyzeFrame, 2000); 
+        
+    } catch (err) {
+        showError('فشل الوصول للكاميرا: الرجاء إعطاء الصلاحية أو استخدام اتصال آمن (HTTPS).');
+        console.error(err);
+    }
+});
+
+stopCameraBtn.addEventListener('click', () => {
+    stopCamera();
+});
+
+function stopCamera() {
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+    }
+    clearInterval(captureInterval);
+    isCameraMonitoring = false;
+    
+    webcamVideo.style.display = 'none';
+    cameraPlaceholder.style.display = 'block';
+    
+    startCameraBtn.style.display = 'flex';
+    stopCameraBtn.style.display = 'none';
+    cameraStatusText.style.display = 'none';
+}
+
+async function captureAndAnalyzeFrame() {
+    if (!isCameraMonitoring || webcamVideo.videoWidth === 0) return;
+    
+    const context = captureCanvas.getContext('2d');
+    captureCanvas.width = webcamVideo.videoWidth;
+    captureCanvas.height = webcamVideo.videoHeight;
+    context.drawImage(webcamVideo, 0, 0, captureCanvas.width, captureCanvas.height);
+    
+    // تحويل الصورة الى ملف وارسالها للواجهة البرمجية
+    captureCanvas.toBlob(async (blob) => {
+        const formData = new FormData();
+        formData.append('file', blob, 'camera_frame.jpg');
+        
+        try {
+            const response = await fetch('/api/predict', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (response.ok) {
+                displayResult(data);
+            }
+        } catch (err) {
+            console.error("Camera analysis error:", err);
+        }
+    }, 'image/jpeg', 0.8);
+}
+
+// ==================== 3. معالجة تحميل الملف (صورة / فيديو) ====================
 fileInput.addEventListener('change', function(e) {
     if (e.target.files.length > 0) {
         const file = e.target.files[0];
@@ -43,7 +156,7 @@ fileInput.addEventListener('change', function(e) {
     }
 });
 
-// ==================== 2. السحب والإفلات ====================
+// ==================== 4. السحب والإفلات ====================
 fileLabel.addEventListener('dragover', function(e) {
     e.preventDefault();
     fileLabel.classList.add('dragover');
@@ -86,7 +199,7 @@ fileLabel.addEventListener('drop', function(e) {
     }
 });
 
-// ==================== 3. إرسال الصورة للنموذج ====================
+// ==================== 5. إرسال الصورة للنموذج ====================
 predictBtn.addEventListener('click', async function() {
     if (!fileInput.files || fileInput.files.length === 0) {
         showError('الرجاء اختيار صورة أو فيديو أولاً');
@@ -145,7 +258,7 @@ predictBtn.addEventListener('click', async function() {
     }
 });
 
-// ==================== 4. عرض النتيجة بألوان مختلفة ====================
+// ==================== 6. عرض النتيجة بألوان مختلفة ====================
 function displayResult(data) {
     const posture = data.posture;
     const confidence = parseFloat(data.confidence);
@@ -267,19 +380,23 @@ function displayResult(data) {
     // عرض النتائج
     resultContainer.classList.add('show');
 
-    // تشغيل صوت التنبيه عند اكتشاف السقوط
+    // تشغيل صوت التنبيه عند اكتشاف السقوط بشكل سريع
     if (data.is_alert) {
-        playAlertSound();
+        if (!window.alertTimeout) {
+            playAlertSound();
+            // منع تكرار الصوت المزعج في الكاميرا، السماح بصوت كل 5 ثوان
+            window.alertTimeout = setTimeout(() => { window.alertTimeout = null; }, 5000);
+        }
     }
 }
 
-// ==================== 5. دالة عرض الأخطاء ====================
+// ==================== 7. دالة عرض الأخطاء ====================
 function showError(message) {
     errorMessage.textContent = message;
     errorDiv.classList.add('show');
 }
 
-// ==================== 6. زر الصورة الجديدة ====================
+// ==================== 8. زر الصورة الجديدة ====================
 resetBtn.addEventListener('click', function() {
     // إعادة تعيين الملفات
     fileInput.value = '';
@@ -297,7 +414,7 @@ resetBtn.addEventListener('click', function() {
     errorDiv.classList.remove('show');
 });
 
-// ==================== 7. تشغيل صوت التنبيه ====================
+// ==================== 9. تشغيل صوت التنبيه ====================
 function playAlertSound() {
     // إنشاء صوت تنبيه بسيط باستخدام Web Audio API
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();

@@ -65,12 +65,17 @@
                 </div>
             </div>
 
+            <!-- Mode Selection -->
+            <div class="mode-selection" style="display: flex; gap: 10px; margin-bottom: 25px;">
+                <button id="modeUploadBtn" class="btn btn-predict active" style="flex:1; margin: 0;"><i class="fas fa-file-upload"></i> رفع ملف</button>
+                <button id="modeCameraBtn" class="btn btn-reset" style="flex:1; margin: 0;"><i class="fas fa-video"></i> مراقبة بالكاميرا</button>
+            </div>
+
             <!-- Upload Section -->
-            <div class="upload-section">
+            <div class="upload-section" id="uploadSection">
                 <div class="section-title">
                     <i class="fas fa-image"></i>
-                    تحميل الصورة
-                </div>
+                    تحميل الصورة او الفيديو                </div>
 
                 <div class="file-input-wrapper">
                     <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.gif,.bmp,.mp4,.avi,.mov,.mkv,video/*" />
@@ -97,6 +102,47 @@
                 </div>
             </div>
 
+            <!-- Buttons Upload Only -->
+            <div class="btn-group" id="uploadActionGroup" style="margin-bottom: 20px;">
+                <button class="btn btn-predict" id="predictBtn" disabled>
+                    <i class="fas fa-wand-magic-sparkles"></i>
+                    <span>تحليل الملف</span>
+                </button>
+                <button class="btn btn-reset" id="resetBtn" style="display: none;">
+                    <i class="fas fa-rotate-left"></i>
+                    <span>ملف جديد</span>
+                </button>
+            </div>
+            </div> <!-- End Upload Section -->
+
+            <!-- ==================== CAMERA SECTION ==================== -->
+            <div class="camera-section" id="cameraSection" style="display: none; margin-bottom: 25px;">
+                <div class="section-title">
+                    <i class="fas fa-camera"></i>
+                    المراقبة المباشرة
+                </div>
+                <div class="camera-container" style="position: relative; border: 2px dashed var(--primary); border-radius: 20px; overflow: hidden; background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%);">
+                    <video id="webcamVideo" autoplay playsinline style="width: 100%; border-radius: 18px; display: none; transform: scaleX(-1);"></video>
+                    <canvas id="captureCanvas" style="display: none;"></canvas>
+                    <div id="cameraPlaceholder" style="padding: 50px 30px; text-align: center;">
+                        <i class="fas fa-video" style="font-size: 50px; color: var(--primary); margin-bottom: 15px; display: block;"></i>
+                        <p style="font-size: 18px; font-weight: 600; color: var(--secondary);">الكاميرا متوقفة</p>
+                        <p style="font-size: 13px; color: #9ca3af;">اضغط على زر التشغيل بالأسفل لفتح الكاميرا وبدء المراقبة</p>
+                    </div>
+                </div>
+                <div class="btn-group" style="margin-top: 15px;">
+                    <button class="btn btn-predict" id="startCameraBtn">
+                        <i class="fas fa-play"></i>
+                        <span>تشغيل الكاميرا والمراقبة</span>
+                    </button>
+                    <button class="btn btn-reset" id="stopCameraBtn" style="display: none;">
+                        <i class="fas fa-stop"></i>
+                        <span>إيقاف المراقبة</span>
+                    </button>
+                </div>
+                <p id="cameraStatusText" style="text-align: center; margin-top: 15px; font-weight: bold; color: var(--danger); display: none; animation: pulse 1.5s infinite;">🔴 جاري المراقبة والتحليل المستمر...</p>
+            </div>
+
             <!-- Features -->
             <div class="features">
                 <strong style="color: var(--dark);">✨ مميزات النظام:</strong>
@@ -120,17 +166,6 @@
                 </div>
             </div>
 
-            <!-- Buttons -->
-            <div class="btn-group">
-                <button class="btn btn-predict" id="predictBtn" disabled>
-                    <i class="fas fa-wand-magic-sparkles"></i>
-                    <span>تحليل الصورة</span>
-                </button>
-                <button class="btn btn-reset" id="resetBtn" style="display: none;">
-                    <i class="fas fa-rotate-left"></i>
-                    <span>صورة جديدة</span>
-                </button>
-            </div>
 
             <!-- Loader -->
             <div class="loader" id="loader">
