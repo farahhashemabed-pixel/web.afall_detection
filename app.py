@@ -107,20 +107,21 @@ def predict():
                 os.remove(filepath)
             return jsonify({'error': f'خطأ في التنبؤ: {str(predict_error)}'}), 500
         
-        # فحص التنبيهات وإرسال تيليغرام
+        # فحص التنبيهات وإرسال تيليغرام مع الصورة
         is_alert = posture in ['سقوط', 'ممدد'] and confidence > 0.6
         
         if is_alert:
             print(f"⚠️ تم اكتشاف تنبيه: {posture}")
             send_alert_notification(posture, confidence)
-            # إرسال تنبيه تيليغرام
-            tg_success, tg_msg = send_telegram_alert(posture, confidence * 100)
+            # إرسال تنبيه تيليغرام مع الصورة
+            tg_success, tg_msg = send_telegram_alert(posture, confidence * 100, image_path=filepath)
             print(f"📱 تيليغرام: {tg_msg}")
         
         # حذف الملف بعد المعالجة
         if os.path.exists(filepath):
             os.remove(filepath)
             print(f'🗑️ تم حذف الملف المؤقت')
+
         
         # إرسال النتيجة
         response_data = {
