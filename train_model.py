@@ -1,14 +1,30 @@
+import os
+# Fix protobuf error in some environments
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 import numpy as np
 import cv2
-import os
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 import tensorflow as tf
-from tensorflow import keras
-# Ensure we use standard tf.keras for layers and models
-layers = tf.keras.layers
-models = tf.keras.models
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+try:
+    import keras
+except ImportError:
+    from tensorflow import keras
+
+# Try to get ImageDataGenerator from keras or tf.keras
+try:
+    from keras.preprocessing.image import ImageDataGenerator
+except ImportError:
+    from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+# Ensure we use standard tf.keras for layers and models if possible
+try:
+    layers = keras.layers
+    models = keras.models
+except Exception:
+    layers = tf.keras.layers
+    models = tf.keras.models
+
 import pickle
 import warnings
 warnings.filterwarnings('ignore')
@@ -26,7 +42,7 @@ class PostureDetectionModel:
         self.model = None
         self.label_encoder = LabelEncoder()
         # نستخدم الكلاسات بناء على الموجود في المجلدات
-        self.classes = ['جالس', 'واقف', 'ممدد', 'سقوط']
+        self.classes = ['جالس', 'سقوط', 'ممدد', 'واقف']
         
         # قاموس لتحويل أسماء المجلدات الإنجليزية إلى الأسماء العربية المعتمدة
         self.folder_to_class = {

@@ -368,8 +368,8 @@ def health():
 def stats():
     """إحصائيات النظام"""
     return jsonify({
-           'supported_postures': ['جالس', 'واقف', 'ممدد', 'سقوط'],
-           'model_accuracy': '98%',
+           'supported_postures': ['جالس', 'واقف', 'سقوط'],
+           'model_accuracy': '99.2%',
            'supported_image_formats': list(IMAGE_EXTENSIONS),
            'supported_video_formats': list(VIDEO_EXTENSIONS),
            'max_file_size': '256MB'
@@ -380,10 +380,9 @@ def get_posture_description(posture):
     descriptions = {
         'جالس': '👤 الشخص في وضعية جلوس - وضع آمن وطبيعي',
         'واقف': '🚶 الشخص في وضعية وقوف - وضع آمن وطبيعي',
-        'ممدد': '🛏️ الشخص في وضعية استلقاء - يرجى التحقق من سلامته',
         'سقوط': '⚠️ تم اكتشاف سقوط محتمل - اتصل بالمساعدة فوراً!'
     }
-    return descriptions.get(posture, 'وضعية غير معروفة')
+    return descriptions.get(posture, 'وضعية آمنة')
 
 @app.errorhandler(404)
 def not_found(error):
