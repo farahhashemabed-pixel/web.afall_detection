@@ -315,38 +315,50 @@ predictBtn.addEventListener('click', async function() {
                 });
             }
             
-            // تشغيل كشف الوضعيات محلياً ورسم الهيكل والصناديق
-            const tempCanvas = document.createElement('canvas');
-            const analysis = await processPoseOnCanvas(imagePreview, tempCanvas);
-            
-            // استبدال المعاينة بالصورة المرسوم عليها تفصيلياً
-            imagePreview.src = tempCanvas.toDataURL('image/jpeg', 0.85);
-            
-            // تحويل الكانفاس لملف وإرساله للسيرفر
-            await new Promise((resolve, reject) => {
-                tempCanvas.toBlob(async (blob) => {
-                    if (!blob) {
-                        reject(new Error("فشل رسم وتحليل الصورة"));
-                        return;
-                    }
-                    formData.append('file', blob, 'uploaded_frame.jpg');
-                    formData.append('posture', analysis.posture);
-                    formData.append('confidence', `${(analysis.confidence * 100).toFixed(1)}%`);
+            // محاولة تشغيل كشف الوضعيات محلياً بـ MediaPipe
+            let analysis = null;
+            let useClientSide = false;
+            try {
+                const tempCanvas = document.createElement('canvas');
+                analysis = await processPoseOnCanvas(imagePreview, tempCanvas);
+                
+                // إذا نجح MediaPipe في كشف شخص
+                if (analysis && analysis.confidence > 0) {
+                    useClientSide = true;
+                    imagePreview.src = tempCanvas.toDataURL('image/jpeg', 0.85);
                     
-                    try {
-                        const response = await fetch('/api/predict', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        const data = await response.json();
-                        if (!response.ok) throw new Error(data.error || 'خطأ في معالجة الصورة');
-                        displayResult(data);
-                        resolve();
-                    } catch (err) {
-                        reject(err);
-                    }
-                }, 'image/jpeg', 0.85);
-            });
+                    await new Promise((resolve, reject) => {
+                        tempCanvas.toBlob(async (blob) => {
+                            if (!blob) { reject(new Error('فشل تحليل الصورة')); return; }
+                            formData.append('file', blob, 'uploaded_frame.jpg');
+                            formData.append('posture', analysis.posture);
+                            formData.append('confidence', `${(analysis.confidence * 100).toFixed(1)}%`);
+                            try {
+                                const response = await fetch('/api/predict', { method: 'POST', body: formData });
+                                const data = await response.json();
+                                if (!response.ok) throw new Error(data.error || 'خطأ');
+                                displayResult(data);
+                                resolve();
+                            } catch (err) { reject(err); }
+                        }, 'image/jpeg', 0.85);
+                    });
+                }
+            } catch (e) {
+                console.log('MediaPipe failed, falling back to server:', e);
+                useClientSide = false;
+            }
+            
+            // إذا فشل MediaPipe في كشف الشخص، نرسل الصورة الأصلية للسيرفر ليحللها
+            if (!useClientSide) {
+                formData.append('file', file);
+                const response = await fetch('/api/predict', { method: 'POST', body: formData });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'خطأ في معالجة الصورة');
+                if (data.processed_image) {
+                    imagePreview.src = `data:image/jpeg;base64,${data.processed_image}`;
+                }
+                displayResult(data);
+            }
         }
     } catch (error) {
         showError(error.message);
@@ -511,6 +523,9 @@ resetBtn.addEventListener('click', function() {
     resultContainer.classList.remove('show');
     loader.classList.remove('show');
     errorDiv.classList.remove('show');
+    
+    // فتح نافذة اختيار الملف مباشرة
+    fileInput.click();
 });
 
 // ==================== 9. تشغيل صوت التنبيه ====================
