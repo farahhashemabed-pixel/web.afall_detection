@@ -1,3 +1,14 @@
+// ==================== Helper: Local Posture Description ====================
+function getDescriptionLocal(posture, isAlert) {
+    const descriptions = {
+        'جالس': '🪑 الشخص في وضعية جلوس - وضع آمن وطبيعي',
+        'واقف': '🚶 الشخص في وضعية وقوف - وضع آمن وطبيعي',
+        'سقوط': '⚠️ تم اكتشاف سقوط محتمل - اتصل بالمساعدة فوراً!',
+        'غير معروف': 'لم يتم كشف أي شخص بوضوح في المشهد'
+    };
+    return descriptions[posture] || (isAlert ? '⚠️ تم اكتشاف حالة تستدعي الانتباه' : '✅ لا يوجد خطر');
+}
+
 // ==================== DOM Elements ====================
 const fileInput = document.getElementById('fileInput');
 const fileLabel = document.getElementById('fileLabel');
@@ -27,6 +38,8 @@ const cameraOverlay = document.getElementById('cameraOverlay');
 let cameraStream = null;
 let captureInterval = null;
 let isCameraMonitoring = false;
+let cameraSessionEvents = [];
+let cameraSessionStartTime = null;
 
 // ==================== Image Preview Elements ====================
 const imagePreviewContainer = document.getElementById('imagePreviewContainer');
@@ -87,6 +100,8 @@ startCameraBtn.addEventListener('click', async () => {
         
         isCameraMonitoring = true;
         isAnalyzing = false;
+        cameraSessionEvents = [];
+        cameraSessionStartTime = Date.now();
         resultContainer.classList.remove('show');
         errorDiv.classList.remove('show');
         
@@ -122,6 +137,64 @@ function stopCamera() {
     startCameraBtn.style.display = 'flex';
     stopCameraBtn.style.display = 'none';
     cameraStatusText.style.display = 'none';
+    
+    // عرض ملخص المراقبة بالكاميرا عند إيقافها
+    if (cameraSessionEvents.length > 0) {
+        // تحديد الوضعية الكلية للمراقبة: السقوط كأولوية قصوى، وإلا الأكثر تكراراً
+        let overallPosture = 'غير معروف';
+        let overallConfidence = 0.95;
+        
+        const fallFrames = cameraSessionEvents.filter(e => e.posture === 'سقوط');
+        
+        if (fallFrames.length > 0) {
+            overallPosture = 'سقوط';
+            overallConfidence = Math.max(...fallFrames.map(f => f.confidence));
+        } else {
+            const counts = {};
+            cameraSessionEvents.forEach(e => {
+                counts[e.posture] = (counts[e.posture] || 0) + 1;
+            });
+            
+            let maxCount = -1;
+            for (const post in counts) {
+                if (counts[post] > maxCount) {
+                    maxCount = counts[post];
+                    overallPosture = post;
+                }
+            }
+            
+            const matchingFrames = cameraSessionEvents.filter(e => e.posture === overallPosture);
+            if (matchingFrames.length > 0) {
+                const sumConf = matchingFrames.reduce((sum, f) => sum + f.confidence, 0);
+                overallConfidence = sumConf / matchingFrames.length;
+            }
+        }
+        
+        const isAlert = overallPosture === 'سقوط' && overallConfidence > 0.6;
+        
+        const getPostureDescriptionJS = (posture) => {
+            const descriptions = {
+                'جالس': '👤 الشخص في وضعية جلوس - وضع آمن وطبيعي',
+                'واقف': '🚶 الشخص في وضعية وقوف - وضع آمن وطبيعي',
+                'سقوط': '⚠️ تم اكتشاف سقوط محتمل أثناء المراقبة - اتصل بالمساعدة فوراً!',
+                'لم يتم كشف شخص': 'لم يتم كشف أي شخص خلال فترة المراقبة.'
+            };
+            return descriptions[posture] || 'وضعية آمنة';
+        };
+        
+        const finalData = {
+            status: 'success',
+            posture: overallPosture,
+            confidence: `${(overallConfidence * 100).toFixed(2)}%`,
+            is_alert: isAlert,
+            alert_message: isAlert ? '⚠️ تنبيه أثناء المراقبة!' : '✅ حالة مراقبة آمنة',
+            description: getPostureDescriptionJS(overallPosture) + ` (مجموع فترة المراقبة: ${Math.round((Date.now() - cameraSessionStartTime) / 1000)} ثانية)`,
+            events: cameraSessionEvents,
+            frames_count: cameraSessionEvents.length
+        };
+        
+        displayResult(finalData);
+    }
 }
 
 async function captureAndAnalyzeFrame() {
@@ -374,8 +447,9 @@ predictBtn.addEventListener('click', async function() {
                 const frameCanvas = document.createElement('canvas');
                 let analysis = await processPoseOnCanvas(tempVideo, frameCanvas);
                 
-                // Fallback to server if MediaPipe fails to detect a person (confidence is 0)
-                if (!analysis || analysis.confidence === 0 || analysis.posture === 'لم يتم كشف شخص' || analysis.posture === 'غير معروف') {
+                // Fallback to server only if analysis is null (unexpected)
+                // This prevents false fall alerts when no person is detected
+                if (!analysis) {
                     try {
                         const blob = await new Promise(resolve => frameCanvas.toBlob(resolve, 'image/jpeg', 0.8));
                         if (blob) {
@@ -398,7 +472,7 @@ predictBtn.addEventListener('click', async function() {
                                 
                                 let color = "rgb(16, 185, 129)"; // Green for normal
                                 if (analysis.posture === 'جالس') color = "rgb(245, 158, 11)"; // Orange
-                                else if (analysis.posture === 'سقوط' || analysis.posture === 'ممدد') color = "rgb(239, 68, 68)"; // Red
+                                else if (analysis.posture === 'سقوط') color = "rgb(239, 68, 68)"; // Red
                                 
                                 ctx.fillStyle = color;
                                 ctx.font = "bold 16px sans-serif";
@@ -415,26 +489,26 @@ predictBtn.addEventListener('click', async function() {
                 const dataUrl = frameCanvas.toDataURL('image/jpeg', 0.6);
                 const base64Str = dataUrl.split(',')[1];
                 
-                const event = {
-                    time_sec: parseFloat(timeSec.toFixed(1)),
-                    posture: analysis.posture,
-                    confidence: analysis.confidence,
-                    image_data: base64Str
-                };
-                
-                detectedEvents.push(event);
-                
-                if (analysis.posture === 'سقوط' || analysis.posture === 'ممدد') {
-                    if (!highestRisk || analysis.confidence > highestRisk.confidence) {
-                        highestRisk = {
-                            time_sec: event.time_sec,
-                            posture: analysis.posture,
-                            confidence: analysis.confidence,
-                            canvas: frameCanvas,
-                            image_data: base64Str
-                        };
-                    }
-                }
+                if (analysis.posture !== 'لم يتم كشف شخص') {
+    const event = {
+        time_sec: parseFloat(timeSec.toFixed(1)),
+        posture: analysis.posture,
+        confidence: analysis.confidence,
+        image_data: base64Str
+    };
+    detectedEvents.push(event);
+    if (analysis.posture === 'سقوط') {
+        if (!highestRisk || analysis.confidence > highestRisk.confidence) {
+            highestRisk = {
+                time_sec: event.time_sec,
+                posture: analysis.posture,
+                confidence: analysis.confidence,
+                canvas: frameCanvas,
+                image_data: base64Str
+            };
+        }
+    }
+}
             }
             
             // Determine overall posture: prioritize fall/lying for safety, otherwise use majority vote
@@ -442,14 +516,10 @@ predictBtn.addEventListener('click', async function() {
             let overallConfidence = 0.95;
             
             const fallFrames = detectedEvents.filter(e => e.posture === 'سقوط');
-            const lyingFrames = detectedEvents.filter(e => e.posture === 'ممدد');
             
             if (fallFrames.length > 0) {
                 overallPosture = 'سقوط';
                 overallConfidence = Math.max(...fallFrames.map(f => f.confidence));
-            } else if (lyingFrames.length > 0) {
-                overallPosture = 'ممدد';
-                overallConfidence = Math.max(...lyingFrames.map(f => f.confidence));
             } else {
                 // If no fall/lying, use the most frequent posture (majority vote)
                 const counts = {};
@@ -473,13 +543,12 @@ predictBtn.addEventListener('click', async function() {
                 }
             }
             
-            const isAlert = (overallPosture === 'سقوط' || overallPosture === 'ممدد') && overallConfidence > 0.6;
+            const isAlert = overallPosture === 'سقوط' && overallConfidence > 0.6;
             
             const getPostureDescriptionJS = (posture) => {
                 const descriptions = {
                     'جالس': '👤 الشخص في وضعية جلوس - وضع آمن وطبيعي',
                     'واقف': '🚶 الشخص في وضعية وقوف - وضع آمن وطبيعي',
-                    'ممدد': '🛏️ الشخص في وضعية استلقاء',
                     'سقوط': '⚠️ تم اكتشاف سقوط محتمل في الفيديو - اتصل بالمساعدة فوراً!',
                     'لم يتم كشف شخص': 'لم يتم كشف أي شخص في إطارات الفيديو.'
                 };
@@ -603,12 +672,6 @@ function displayResult(data) {
             subtitle: 'الشخص في وضعية وقوف طبيعية',
             class: 'success'
         },
-        'ممدد': { 
-            icon: '🛏️', 
-            title: '⚠️ تحذير', 
-            subtitle: 'الشخص في وضعية استلقاء',
-            class: 'warning'
-        },
         'سقوط': { 
             icon: '⚠️', 
             title: '🚨 تنبيه طوارئ', 
@@ -632,7 +695,7 @@ function displayResult(data) {
     document.getElementById('posture').textContent = posture;
     document.getElementById('confidence').textContent = confidence.toFixed(2) + '%';
     document.getElementById('alertStatus').textContent = data.is_alert ? '⚠️ تنبيه نشط' : '✅ آمن';
-    document.getElementById('description').textContent = data.description;
+    document.getElementById('description').textContent = data.description || getDescriptionLocal(posture, data.is_alert);
     
     // تحديث شريط الثقة
     const confidenceFill = document.getElementById('confidenceFill');

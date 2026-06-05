@@ -294,10 +294,10 @@
         <!-- Footer -->
         <div class="footer">
             <div class="footer-links">
-                <a href="#" onclick="openModal('aboutModal')"><i class="fas fa-info-circle"></i> حول</a>
-                <a href="#" onclick="openModal('supportModal')"><i class="fas fa-headset"></i> الدعم</a>
-                <a href="#" onclick="openModal('privacyModal')"><i class="fas fa-shield-alt"></i> الخصوصية</a>
-                <a href="#" onclick="openModal('termsModal')"><i class="fas fa-file-contract"></i> الشروط</a>
+                <a href="#" onclick="openModal('aboutModal')">ℹ️ حول</a>
+                <a href="#" onclick="openModal('supportModal')">🎧 الدعم</a>
+                <a href="#" onclick="openModal('privacyModal')">🔒 الخصوصية</a>
+                <a href="#" onclick="openModal('termsModal')">📋 الشروط</a>
             </div>
             <p>🏥 نظام مراقبة كبار السن © 2026 | تم تطويره بواسطة فرح هاشم 👩‍💻</p>
         </div>
@@ -314,10 +314,18 @@
         </div>
         <div class="modal-body">
             <h4>🏥 نظام مراقبة كبار السن للكشف عن السقوط</h4>
-            <p>نظام ذكي يعتمد على الرؤية الحاسوبية والذكاء الاصطناعي لمراقبة كبار السن والكشف الفوري عن حالات السقوط أو الأوضاع الخطرة.</p>
+            <p>نظام ذكي يعتمد على الرؤية الحاسوبية والذكاء الاصطناعي لمراقبة كبار السن والكشف الفوري عن حالات السقوط. يدعم تحليل الصور والفيديو والكاميرا المباشرة، ويرسل إشعارات تيليغرام فورية عند اكتشاف سقوط أو وضعية خطرة.</p>
+            <hr style="margin: 15px 0; border-color: #e2e8f0;">
+            <div style="background:#f8faff; border-radius:10px; padding:14px; margin-bottom:10px;">
+                <p><strong>🤖 كيف يعمل النظام:</strong></p>
+                <p>1️⃣ يلتقط الكاميرا أو الصورة أو الفيديو</p>
+                <p>2️⃣ يحلل وضعية الشخص باستخدام الذكاء الاصطناعي</p>
+                <p>3️⃣ يصنّف الوضعية: جلوس / وقوف / سقوط</p>
+                <p>4️⃣ عند اكتشاف سقوط يرسل تنبيهاً فورياً على تيليغرام</p>
+            </div>
             <hr style="margin: 15px 0; border-color: #e2e8f0;">
             <p><strong>🤖 النموذج المستخدم:</strong> MobileNetV2 (CNN)</p>
-            <p><strong>📊 الفئات المصنّفة:</strong> واقف — جالس — ممدد — سقوط</p>
+            <p><strong>📊 الفئات المصنّفة:</strong> وقوف — جلوس — سقوط</p>
             <p><strong>🎯 دقة النموذج:</strong> أكثر من 95%</p>
             <p><strong>🌐 تقنيات التطوير:</strong> Python · Flask · TensorFlow · OpenCV</p>
             <hr style="margin: 15px 0; border-color: #e2e8f0;">
@@ -420,7 +428,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}" charset="UTF-8"></script>
     <script>
         function openModal(id) {
             document.getElementById('modalOverlay').style.display = 'block';

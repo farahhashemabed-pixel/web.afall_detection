@@ -20,16 +20,14 @@ def save_telegram_settings(bot_token, chat_id):
     with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-def send_telegram_alert(posture, confidence, image_path=None):
-    """إرسال رسالة تنبيه عبر تيليغرام مع صورة اختيارية"""
-    settings = load_telegram_settings()
-    bot_token = settings.get("bot_token", "").strip()
-    chat_id = settings.get("chat_id", "").strip()
-
+def send_telegram_alert(posture, confidence, image_path=None, bot_token=None, chat_id=None):
+    """Send a Telegram alert with optional image, requiring explicit bot_token and chat_id.
+    Returns (success: bool, message: str)."""
+    # Ensure token and chat_id are provided explicitly; do not fallback to global settings.
     if not bot_token or not chat_id:
-        print("⚠️ إعدادات تيليغرام غير مكتملة")
-        return False, "إعدادات تيليغرام غير مكتملة"
-
+        print("⚠️ إعدادات تيليغرام غير مكتملة أو غير مقدمة")
+        return False, "إعدادات تيليغرام غير مكتملة أو غير مقدمة"
+    
     icon = "🚨" if posture == "سقوط" else "⚠️"
     caption = (
         f"{icon} *تنبيه طوارئ - نظام مراقبة كبار السن*\n\n"
@@ -38,6 +36,17 @@ def send_telegram_alert(posture, confidence, image_path=None):
         f"{'🚨 تم اكتشاف *سقوط* محتمل! يرجى التحقق فوراً!' if posture == 'سقوط' else '⚠️ الشخص في وضعية *استلقاء* غير طبيعية!'}\n\n"
         f"⏰ هذا تنبيه تلقائي من نظام ElderCare"
     )
+
+    # Ensure image_path, if provided, is within the uploads directory to prevent cross-user image sending
+    if image_path:
+        try:
+            uploads_dir = os.path.abspath('uploads')
+            img_path_abs = os.path.abspath(image_path)
+            if not img_path_abs.startswith(uploads_dir + os.sep):
+                print("⚠️ محاولة إرسال صورة من مسار غير مسموح به");
+                image_path = None
+        except Exception:
+            image_path = None
 
     # محاولة إرسال مع صورة أولاً
     if image_path and os.path.exists(image_path):
@@ -77,6 +86,7 @@ def send_telegram_alert(posture, confidence, image_path=None):
     except Exception as e:
         print(f"❌ خطأ في الاتصال بتيليغرام: {e}")
         return False, str(e)
+
 
 
 def test_telegram_connection(bot_token, chat_id):
