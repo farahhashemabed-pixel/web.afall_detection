@@ -85,10 +85,28 @@ def predict():
             return jsonify({'error': 'فشل حفظ الملف'}), 500
         
         # التنبؤ
-        print("🤖 بدء التنبؤ...")
+        client_posture = request.form.get('posture')
+        client_confidence_str = request.form.get('confidence')
+        
+        posture = None
+        confidence = 0.0
+        processed_img = None
+        
         try:
-            predictor = PosturePredictor()
-            posture, confidence, processed_img = predictor.predict_image(filepath)
+            if client_posture and client_confidence_str:
+                print(f"🤖 استخدام التنبؤ المرسل من المتصفح: {client_posture} ({client_confidence_str})")
+                posture = client_posture
+                try:
+                    confidence = float(client_confidence_str.replace('%', '')) / 100.0
+                except ValueError:
+                    confidence = 0.95
+                
+                # قراءة الصورة التي تم رسم الصناديق عليها بالفعل في المتصفح
+                processed_img = cv2.imread(filepath)
+            else:
+                print("🤖 بدء التنبؤ في السيرفر...")
+                predictor = PosturePredictor()
+                posture, confidence, processed_img = predictor.predict_image(filepath)
             
             if posture is None:
                 print('❌ فشل التنبؤ - بدون نتيجة')
@@ -96,7 +114,7 @@ def predict():
                     os.remove(filepath)
                 return jsonify({'error': 'خطأ في معالجة الصورة - بدون نتيجة'}), 500
             
-            print(f'✅ النتيجة: {posture}')
+            print(f'✅ النتيجة النهائية: {posture}')
             print(f'📊 درجة الثقة: {confidence * 100:.2f}%')
             
             # ترميز الصورة المعالجة بالـ Base64

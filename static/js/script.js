@@ -128,58 +128,74 @@ async function captureAndAnalyzeFrame() {
     if (!isCameraMonitoring) return;
     
     if (webcamVideo.videoWidth === 0 || isAnalyzing) {
-        setTimeout(captureAndAnalyzeFrame, 500);
+        setTimeout(captureAndAnalyzeFrame, 200);
         return;
     }
     
     isAnalyzing = true;
-    const context = captureCanvas.getContext('2d');
-    captureCanvas.width = webcamVideo.videoWidth;
-    captureCanvas.height = webcamVideo.videoHeight;
-    context.drawImage(webcamVideo, 0, 0, captureCanvas.width, captureCanvas.height);
     
-    // تحويل الصورة الى ملف وارسالها للواجهة البرمجية
-    captureCanvas.toBlob(async (blob) => {
-        const formData = new FormData();
-        formData.append('file', blob, 'camera_frame.jpg');
+    try {
+        // تشغيل كاشف الوضعيات وتحديد أجزاء الجسم ورسمها على الكانفاس محلياً
+        const analysis = await processPoseOnCanvas(webcamVideo, captureCanvas);
         
-        try {
-            const response = await fetch('/api/predict', {
-                method: 'POST',
-                body: formData
-            });
-            const data = await response.json();
-            if (response.ok) {
-                displayResult(data);
-                
-                // تحديث الشاشة العائمة على الكاميرا للنتيجة الفورية
-                cameraOverlay.textContent = `النتيجة المباشرة: ${data.posture} (${data.confidence})`;
-                if (data.is_alert) {
-                    cameraOverlay.style.background = 'rgba(239, 68, 68, 0.9)'; // أحمر
-                } else {
-                    cameraOverlay.style.background = 'rgba(16, 185, 129, 0.9)'; // أخضر
-                }
-                
-                // عرض الصورة المعالجة بالصندوق وإخفاء الفيديو الأصلي
-                if (data.processed_image) {
-                    const processedImg = document.getElementById('webcamProcessedImg');
-                    if (processedImg) {
-                        processedImg.src = `data:image/jpeg;base64,${data.processed_image}`;
-                        processedImg.style.display = 'block';
-                        webcamVideo.style.display = 'none';
-                    }
-                }
-            }
-        } catch (err) {
-            console.error("Camera analysis error:", err);
-        } finally {
-            isAnalyzing = false;
-            // تحليل الفريم التالي بعد ثانية واحدة لمنع الضغط على السيرفر
-            if (isCameraMonitoring) {
-                setTimeout(captureAndAnalyzeFrame, 1000);
-            }
+        // عرض النتيجة المرسومة فوراً للمستخدم للحصول على بث فائق السرعة
+        const processedImg = document.getElementById('webcamProcessedImg');
+        if (processedImg) {
+            processedImg.src = captureCanvas.toDataURL('image/jpeg', 0.85);
+            processedImg.style.display = 'block';
+            webcamVideo.style.display = 'none';
         }
-    }, 'image/jpeg', 0.8);
+        
+        // تحديث النص العائم مباشرة
+        cameraOverlay.style.display = 'block';
+        cameraOverlay.textContent = `النتيجة المباشرة: ${analysis.posture} (${(analysis.confidence * 100).toFixed(1)}%)`;
+        if (analysis.posture === 'سقوط') {
+            cameraOverlay.style.background = 'rgba(239, 68, 68, 0.9)'; // أحمر
+        } else if (analysis.posture === 'جالس') {
+            cameraOverlay.style.background = 'rgba(245, 158, 11, 0.9)'; // برتقالي
+        } else {
+            cameraOverlay.style.background = 'rgba(16, 185, 129, 0.9)'; // أخضر
+        }
+        
+        // إرسال الصورة المرسومة والنتيجة للسيرفر كل 1.5 ثانية لحفظ الإحصاءات وإرسال التنبيهات
+        captureCanvas.toBlob(async (blob) => {
+            if (!blob) {
+                isAnalyzing = false;
+                if (isCameraMonitoring) setTimeout(captureAndAnalyzeFrame, 500);
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', blob, 'camera_frame.jpg');
+            formData.append('posture', analysis.posture);
+            formData.append('confidence', `${(analysis.confidence * 100).toFixed(1)}%`);
+            
+            try {
+                const response = await fetch('/api/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    displayResult(data);
+                }
+            } catch (err) {
+                console.error("Server update error:", err);
+            } finally {
+                isAnalyzing = false;
+                if (isCameraMonitoring) {
+                    setTimeout(captureAndAnalyzeFrame, 1500);
+                }
+            }
+        }, 'image/jpeg', 0.85);
+        
+    } catch (err) {
+        console.error("Camera analysis error:", err);
+        isAnalyzing = false;
+        if (isCameraMonitoring) {
+            setTimeout(captureAndAnalyzeFrame, 1000);
+        }
+    }
 }
 
 // ==================== 3. معالجة تحميل الملف (صورة / فيديو) ====================
@@ -260,26 +276,18 @@ predictBtn.addEventListener('click', async function() {
         return;
     }
 
-    const formData = new FormData();
     const file = fileInput.files[0];
-    formData.append('file', file);
-
-    // 🔄 عرض مؤشر التحميل
     loader.classList.add('show');
     resultContainer.classList.remove('show');
     errorDiv.classList.remove('show');
-    
-    // تعطيل الأزرار
     predictBtn.disabled = true;
     
     try {
-        // 📡 اختيار المسار الصحيح (صورة أو فيديو)
         let isVideo = false;
         if (file) {
             if (file.type && file.type.startsWith('video/')) {
                 isVideo = true;
             } else {
-                // احتياط: تحديد النوع من الامتداد في حال type فارغ
                 const ext = file.name.split('.').pop().toLowerCase();
                 const videoExts = ['mp4', 'avi', 'mov', 'mkv'];
                 if (videoExts.includes(ext)) {
@@ -287,15 +295,6 @@ predictBtn.addEventListener('click', async function() {
                 }
             }
         }
-        const endpoint = isVideo ? '/api/predict_video' : '/api/predict';
-
-        // 📡 إرسال الطلب للخادم
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
         
         if (!response.ok) {
             throw new Error(data.error || 'خطأ في المعالجة');
@@ -491,4 +490,334 @@ function playAlertSound() {
     
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.5);
+}
+
+// ==================== 10. تهيئة MediaPipe Pose وطرق المعالجة محلياً ====================
+let pose = null;
+let poseInitialized = false;
+
+function initPose() {
+    if (poseInitialized) return;
+    try {
+        pose = new Pose({
+            locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+            }
+        });
+        pose.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            enableSegmentation: false,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        poseInitialized = true;
+        console.log("MediaPipe Pose initialized successfully!");
+    } catch (err) {
+        console.error("Failed to initialize MediaPipe Pose:", err);
+    }
+}
+
+let poseResolve = null;
+function getPoseResult(imageElement) {
+    initPose();
+    return new Promise((resolve) => {
+        poseResolve = resolve;
+        pose.onResults((results) => {
+            if (poseResolve) {
+                poseResolve(results);
+                poseResolve = null;
+            }
+        });
+        pose.send({ image: imageElement }).catch(err => {
+            console.error("Pose send error:", err);
+            resolve(null);
+        });
+    });
+}
+
+const poseConnections = [
+    [11, 12], // shoulder to shoulder
+    [11, 23], [12, 24], // shoulder to hip
+    [23, 24], // hip to hip
+    [11, 13], [13, 15], // left arm
+    [12, 14], [14, 16], // right arm
+    [23, 25], [25, 27], // left leg
+    [24, 26], [26, 28]  // right leg
+];
+
+function drawSkeleton(ctx, landmarks, color, width, height) {
+    ctx.save();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 6;
+    
+    poseConnections.forEach(([i, j]) => {
+        let pt1 = landmarks[i];
+        let pt2 = landmarks[j];
+        if (pt1 && pt2 && pt1.visibility > 0.5 && pt2.visibility > 0.5) {
+            ctx.beginPath();
+            ctx.moveTo(pt1.x * width, pt1.y * height);
+            ctx.lineTo(pt2.x * width, pt2.y * height);
+            ctx.stroke();
+        }
+    });
+    
+    // رسم المفاصل الرئيسية
+    landmarks.forEach((pt, index) => {
+        const mainJoints = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+        if (mainJoints.includes(index) && pt && pt.visibility > 0.5) {
+            ctx.beginPath();
+            ctx.arc(pt.x * width, pt.y * height, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = color;
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 2;
+            ctx.fill();
+            ctx.stroke();
+        }
+    });
+    ctx.restore();
+}
+
+function drawRoundRect(ctx, x, y, w, h, r) {
+    if (ctx.roundRect) {
+        ctx.roundRect(x, y, w, h, r);
+    } else {
+        let radius = r;
+        if (Array.isArray(r)) radius = r[0] || 0;
+        if (w < 2 * radius) radius = w / 2;
+        if (h < 2 * radius) radius = h / 2;
+        ctx.moveTo(x + radius, y);
+        ctx.arcTo(x + w, y, x + w, y + h, radius);
+        ctx.arcTo(x + w, y + h, x, y + h, radius);
+        ctx.arcTo(x, y + h, x, y, radius);
+        ctx.arcTo(x, y, x + w, y, radius);
+    }
+}
+
+function drawBodyPartBox(ctx, landmarks, indices, label, color, width, height) {
+    let pts = indices.map(i => landmarks[i]).filter(p => p && p.visibility > 0.45);
+    if (pts.length === 0) return;
+    
+    let minX = Math.min(...pts.map(p => p.x));
+    let maxX = Math.max(...pts.map(p => p.x));
+    let minY = Math.min(...pts.map(p => p.y));
+    let maxY = Math.max(...pts.map(p => p.y));
+    
+    let pxMin = minX * width;
+    let pxMax = maxX * width;
+    let pyMin = minY * height;
+    let pyMax = maxY * height;
+    
+    let w = pxMax - pxMin;
+    let h = pyMax - pyMin;
+    
+    let padX = Math.max(w * 0.15, 12);
+    let padY = Math.max(h * 0.15, 12);
+    
+    pxMin -= padX;
+    pxMax += padX;
+    pyMin -= padY;
+    pyMax += padY;
+    w = pxMax - pxMin;
+    h = pyMax - pyMin;
+    
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8;
+    
+    ctx.beginPath();
+    drawRoundRect(ctx, pxMin, pyMin, w, h, 8);
+    ctx.stroke();
+    
+    ctx.fillStyle = color.replace('rgb', 'rgba').replace(')', ', 0.12)');
+    ctx.fill();
+    
+    ctx.fillStyle = color;
+    ctx.shadowBlur = 0;
+    ctx.font = "bold 11px sans-serif";
+    
+    let textW = ctx.measureText(label).width;
+    ctx.beginPath();
+    drawRoundRect(ctx, pxMin, pyMin - 18, textW + 10, 18, [4, 4, 0, 0]);
+    ctx.fill();
+    
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(label, pxMin + 5, pyMin - 5);
+    
+    ctx.restore();
+}
+
+function getDistance(pt1, pt2) {
+    return Math.sqrt(Math.pow(pt1.x - pt2.x, 2) + Math.pow(pt1.y - pt2.y, 2));
+}
+
+function getAngle(a, b, c) {
+    let ab = {x: a.x - b.x, y: a.y - b.y};
+    let cb = {x: c.x - b.x, y: c.y - b.y};
+    let dot = ab.x * cb.x + ab.y * cb.y;
+    let mag_ab = Math.sqrt(ab.x * ab.x + ab.y * ab.y);
+    let mag_cb = Math.sqrt(cb.x * cb.x + cb.y * cb.y);
+    let cosAngle = dot / (mag_ab * mag_cb);
+    cosAngle = Math.max(-1, Math.min(1, cosAngle));
+    return Math.acos(cosAngle) * 180 / Math.PI;
+}
+
+function classifyPose(landmarks, width, height) {
+    if (!landmarks || landmarks.length < 29) {
+        return { posture: 'غير معروف', confidence: 0.5 };
+    }
+    
+    let nose = landmarks[0];
+    let l_shoulder = landmarks[11];
+    let r_shoulder = landmarks[12];
+    let l_hip = landmarks[23];
+    let r_hip = landmarks[24];
+    let l_knee = landmarks[25];
+    let r_knee = landmarks[26];
+    let l_ankle = landmarks[27];
+    let r_ankle = landmarks[28];
+    
+    let shoulder_center = {
+        x: (l_shoulder.x + r_shoulder.x) / 2,
+        y: (l_shoulder.y + r_shoulder.y) / 2
+    };
+    let hip_center = {
+        x: (l_hip.x + r_hip.x) / 2,
+        y: (l_hip.y + r_hip.y) / 2
+    };
+    let knee_center = {
+        x: (l_knee.x + r_knee.x) / 2,
+        y: (l_knee.y + r_knee.y) / 2
+    };
+    let ankle_center = {
+        x: (l_ankle.x + r_ankle.x) / 2,
+        y: (l_ankle.y + r_ankle.y) / 2
+    };
+    
+    let allX = landmarks.map(l => l.x);
+    let allY = landmarks.map(l => l.y);
+    let minX = Math.min(...allX);
+    let maxX = Math.max(...allX);
+    let minY = Math.min(...allY);
+    let maxY = Math.max(...allY);
+    
+    let bodyW = (maxX - minX) * width;
+    let bodyH = (maxY - minY) * height;
+    let aspect_ratio = bodyW / bodyH;
+    
+    let torso_dx = (shoulder_center.x - hip_center.x) * width;
+    let torso_dy = (shoulder_center.y - hip_center.y) * height;
+    let torso_angle = Math.abs(Math.atan2(torso_dy, torso_dx) * 180 / Math.PI); // 0 = flat, 90 = vertical
+    
+    let leftKneeAngle = getAngle(l_hip, l_knee, l_ankle);
+    let rightKneeAngle = getAngle(r_hip, r_knee, r_ankle);
+    let avgKneeAngle = (leftKneeAngle + rightKneeAngle) / 2;
+    
+    let leftHipAngle = getAngle(l_shoulder, l_hip, l_knee);
+    let rightHipAngle = getAngle(r_shoulder, r_hip, r_knee);
+    let avgHipAngle = (leftHipAngle + rightHipAngle) / 2;
+    
+    // Fallback if shoulder/hip are not visible
+    if ((l_shoulder.visibility < 0.45 && r_shoulder.visibility < 0.45) || (l_hip.visibility < 0.45 && r_hip.visibility < 0.45)) {
+        if (aspect_ratio < 0.55) {
+            return { posture: 'واقف', confidence: 0.80 };
+        } else if (aspect_ratio < 1.05) {
+            return { posture: 'جالس', confidence: 0.80 };
+        } else {
+            return { posture: 'سقوط', confidence: 0.85 };
+        }
+    }
+    
+    let posture = 'واقف';
+    let confidence = 0.95;
+    
+    // قواعد التصنيف باستخدام زوايا المفاصل ووضعية الجذع
+    let isFallen = false;
+    if (aspect_ratio > 1.1) {
+        isFallen = true;
+        confidence = 0.98;
+    } else if (torso_angle < 35) {
+        isFallen = true;
+        confidence = 0.96;
+    } else if (Math.abs(shoulder_center.y - hip_center.y) < 0.14 && aspect_ratio > 0.72) {
+        isFallen = true;
+        confidence = 0.92;
+    }
+    
+    if (isFallen) {
+        posture = 'سقوط';
+    } else {
+        let kneesBent = (leftKneeAngle < 135 || rightKneeAngle < 135);
+        let hipsBent = (leftHipAngle < 135 || rightHipAngle < 135);
+        
+        if (kneesBent && hipsBent) {
+            posture = 'جالس';
+            confidence = 0.94;
+        } else if (aspect_ratio >= 0.52 && torso_angle < 75) {
+            posture = 'جالس';
+            confidence = 0.88;
+        } else {
+            posture = 'واقف';
+            confidence = 0.96;
+        }
+    }
+    
+    return { posture, confidence };
+}
+
+async function processPoseOnCanvas(sourceElement, canvasElement) {
+    const results = await getPoseResult(sourceElement);
+    const ctx = canvasElement.getContext('2d');
+    
+    let w = sourceElement.videoWidth || sourceElement.naturalWidth || sourceElement.width || 640;
+    let h = sourceElement.videoHeight || sourceElement.naturalHeight || sourceElement.height || 480;
+    
+    if (w === 0 || h === 0) {
+        w = 640;
+        h = 480;
+    }
+    
+    canvasElement.width = w;
+    canvasElement.height = h;
+    
+    ctx.drawImage(sourceElement, 0, 0, w, h);
+    
+    if (results && results.poseLandmarks) {
+        const landmarks = results.poseLandmarks;
+        const analysis = classifyPose(landmarks, w, h);
+        
+        let color = "rgb(16, 185, 129)"; // أخضر للوقوف
+        if (analysis.posture === 'جالس') {
+            color = "rgb(245, 158, 11)"; // برتقالي للجلوس
+        } else if (analysis.posture === 'سقوط') {
+            color = "rgb(239, 68, 68)"; // أحمر للسقوط
+        }
+        
+        // رسم مربعات أجزاء الجسم التفصيلية
+        drawBodyPartBox(ctx, landmarks, [0,1,2,3,4,5,6,7,8,9,10], "الرأس - Head", color, w, h);
+        drawBodyPartBox(ctx, landmarks, [11,12,23,24], "الجذع - Torso", color, w, h);
+        drawBodyPartBox(ctx, landmarks, [11,13,15], "الذراع الأيسر - L Arm", color, w, h);
+        drawBodyPartBox(ctx, landmarks, [12,14,16], "الذراع الأيمن - R Arm", color, w, h);
+        drawBodyPartBox(ctx, landmarks, [23,25], "الفخذ الأيسر - L Thigh", color, w, h);
+        drawBodyPartBox(ctx, landmarks, [24,26], "الفخذ الأيمن - R Thigh", color, w, h);
+        drawBodyPartBox(ctx, landmarks, [25,27,29,31], "الساق اليسرى - L Shin", color, w, h);
+        drawBodyPartBox(ctx, landmarks, [26,28,30,32], "الساق اليمنى - R Shin", color, w, h);
+        
+        // رسم الهيكل العظمي
+        drawSkeleton(ctx, landmarks, color, w, h);
+        
+        return analysis;
+    } else {
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 20px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("لم يتم كشف شخص في الإطار", w/2, h/2);
+        return { posture: 'لم يتم كشف شخص', confidence: 0.0 };
+    }
 }
