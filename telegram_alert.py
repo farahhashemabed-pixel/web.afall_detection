@@ -42,10 +42,17 @@ def send_telegram_alert(posture, confidence, image_path=None, bot_token=None, ch
         try:
             uploads_dir = os.path.abspath('uploads')
             img_path_abs = os.path.abspath(image_path)
-            if not img_path_abs.startswith(uploads_dir + os.sep):
-                print("⚠️ محاولة إرسال صورة من مسار غير مسموح به");
-                image_path = None
-        except Exception:
+            # Case-insensitive check on Windows to handle drive letter case mismatch (e.g., C:\ vs c:\)
+            if os.name == 'nt':
+                if not img_path_abs.lower().startswith(uploads_dir.lower() + os.sep.lower()):
+                    print("⚠️ محاولة إرسال صورة من مسار غير مسموح به (تحقق المسار على Windows)");
+                    image_path = None
+            else:
+                if not img_path_abs.startswith(uploads_dir + os.sep):
+                    print("⚠️ محاولة إرسال صورة من مسار غير مسموح به");
+                    image_path = None
+        except Exception as path_ex:
+            print(f"⚠️ خطأ أثناء التحقق من مسار الصورة: {path_ex}")
             image_path = None
 
     # محاولة إرسال مع صورة أولاً

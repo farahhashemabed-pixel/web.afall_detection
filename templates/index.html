@@ -443,13 +443,13 @@
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
         async function loadTelegramStatus() {
-
             try {
-                const res = await fetch('/api/telegram/settings');
-                const data = await res.json();
-                if (data.configured) {
-                    showTelegramStatus('✅ تيليغرام مُفعّل — Chat ID: ' + data.chat_id, '#d1fae5', '#065f46');
-                    document.getElementById('chatId').value = data.chat_id;
+                const token = localStorage.getItem('telegram_bot_token');
+                const chatId = localStorage.getItem('telegram_chat_id');
+                if (token && chatId) {
+                    showTelegramStatus('✅ تيليغرام مُفعّل لجهازكِ الحالي — Chat ID: ' + chatId, '#d1fae5', '#065f46');
+                    document.getElementById('chatId').value = chatId;
+                    document.getElementById('botToken').value = token;
                 }
             } catch(e) {}
         }
@@ -479,13 +479,19 @@
             if (!token || !chatId) { showTelegramStatus('⚠️ يرجى إدخال جميع البيانات', '#fef3c7', '#92400e'); return; }
             btn.textContent = '⏳ جاري الحفظ...'; btn.disabled = true;
             try {
-                const res = await fetch('/api/telegram/settings', {
+                // نختبر البوت أولاً للتأكد من صحة البيانات
+                const res = await fetch('/api/telegram/test', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({bot_token: token, chat_id: chatId})
                 });
                 const data = await res.json();
-                if (res.ok) showTelegramStatus('✅ تم الحفظ! سيصلك تنبيه عند اكتشاف خطر', '#d1fae5', '#065f46');
-                else showTelegramStatus('❌ ' + data.error, '#fee2e2', '#991b1b');
+                if (res.ok) {
+                    localStorage.setItem('telegram_bot_token', token);
+                    localStorage.setItem('telegram_chat_id', chatId);
+                    showTelegramStatus('✅ تم التحقق والحفظ بنجاح لجهازكِ الحالي! تم إرسال رسالة تجريبية لتأكيد الاتصال.', '#d1fae5', '#065f46');
+                } else {
+                    showTelegramStatus('❌ فشل الحفظ: ' + data.error, '#fee2e2', '#991b1b');
+                }
             } catch(e) { showTelegramStatus('❌ خطأ في الاتصال', '#fee2e2', '#991b1b'); }
             btn.textContent = '💾 حفظ الإعدادات'; btn.disabled = false;
         }

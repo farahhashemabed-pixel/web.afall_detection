@@ -243,6 +243,11 @@ async function captureAndAnalyzeFrame() {
             formData.append('posture', analysis.posture);
             formData.append('confidence', `${(analysis.confidence * 100).toFixed(1)}%`);
             
+            const botToken = localStorage.getItem('telegram_bot_token') || '';
+            const chatId = localStorage.getItem('telegram_chat_id') || '';
+            formData.append('bot_token', botToken);
+            formData.append('chat_id', chatId);
+            
             try {
                 const response = await fetch('/api/predict', {
                     method: 'POST',
@@ -400,6 +405,10 @@ predictBtn.addEventListener('click', async function() {
         }
 
         const formData = new FormData();
+        const botToken = localStorage.getItem('telegram_bot_token') || '';
+        const chatId = localStorage.getItem('telegram_chat_id') || '';
+        formData.append('bot_token', botToken);
+        formData.append('chat_id', chatId);
         
         if (isVideo) {
             initPose();
@@ -456,6 +465,10 @@ predictBtn.addEventListener('click', async function() {
                             const fd = new FormData();
                             fd.append('file', blob, 'fallback_frame.jpg');
                             fd.append('no_alert', 'true');
+                            const botToken = localStorage.getItem('telegram_bot_token') || '';
+                            const chatId = localStorage.getItem('telegram_chat_id') || '';
+                            fd.append('bot_token', botToken);
+                            fd.append('chat_id', chatId);
                             const resp = await fetch('/api/predict', { method: 'POST', body: fd });
                             const data = await resp.json();
                             if (resp.ok && data.posture) {
@@ -577,6 +590,11 @@ predictBtn.addEventListener('click', async function() {
                         fd.append('file', blob, 'video_fall_frame.jpg');
                         fd.append('posture', highestRisk.posture);
                         fd.append('confidence', `${(highestRisk.confidence * 100).toFixed(1)}%`);
+                        
+                        const botToken = localStorage.getItem('telegram_bot_token') || '';
+                        const chatId = localStorage.getItem('telegram_chat_id') || '';
+                        fd.append('bot_token', botToken);
+                        fd.append('chat_id', chatId);
                         
                         fetch('/api/predict', {
                             method: 'POST',
