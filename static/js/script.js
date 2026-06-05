@@ -381,6 +381,7 @@ predictBtn.addEventListener('click', async function() {
                         if (blob) {
                             const fd = new FormData();
                             fd.append('file', blob, 'fallback_frame.jpg');
+                            fd.append('no_alert', 'true');
                             const resp = await fetch('/api/predict', { method: 'POST', body: fd });
                             const data = await resp.json();
                             if (resp.ok && data.posture) {
@@ -436,27 +437,40 @@ predictBtn.addEventListener('click', async function() {
                 }
             }
             
-            // Determine overall posture based on the most frequent posture (majority vote)
-            const counts = {};
-            detectedEvents.forEach(e => {
-                counts[e.posture] = (counts[e.posture] || 0) + 1;
-            });
-            
+            // Determine overall posture: prioritize fall/lying for safety, otherwise use majority vote
             let overallPosture = 'غير معروف';
-            let maxCount = -1;
-            for (const post in counts) {
-                if (counts[post] > maxCount) {
-                    maxCount = counts[post];
-                    overallPosture = post;
-                }
-            }
-            
-            // Average confidence for the overall posture
-            const matchingFrames = detectedEvents.filter(e => e.posture === overallPosture);
             let overallConfidence = 0.95;
-            if (matchingFrames.length > 0) {
-                const sumConf = matchingFrames.reduce((sum, f) => sum + f.confidence, 0);
-                overallConfidence = sumConf / matchingFrames.length;
+            
+            const fallFrames = detectedEvents.filter(e => e.posture === 'سقوط');
+            const lyingFrames = detectedEvents.filter(e => e.posture === 'ممدد');
+            
+            if (fallFrames.length > 0) {
+                overallPosture = 'سقوط';
+                overallConfidence = Math.max(...fallFrames.map(f => f.confidence));
+            } else if (lyingFrames.length > 0) {
+                overallPosture = 'ممدد';
+                overallConfidence = Math.max(...lyingFrames.map(f => f.confidence));
+            } else {
+                // If no fall/lying, use the most frequent posture (majority vote)
+                const counts = {};
+                detectedEvents.forEach(e => {
+                    counts[e.posture] = (counts[e.posture] || 0) + 1;
+                });
+                
+                let maxCount = -1;
+                for (const post in counts) {
+                    if (counts[post] > maxCount) {
+                        maxCount = counts[post];
+                        overallPosture = post;
+                    }
+                }
+                
+                // Average confidence for the overall posture
+                const matchingFrames = detectedEvents.filter(e => e.posture === overallPosture);
+                if (matchingFrames.length > 0) {
+                    const sumConf = matchingFrames.reduce((sum, f) => sum + f.confidence, 0);
+                    overallConfidence = sumConf / matchingFrames.length;
+                }
             }
             
             const isAlert = (overallPosture === 'سقوط' || overallPosture === 'ممدد') && overallConfidence > 0.6;

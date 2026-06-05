@@ -131,7 +131,8 @@ def predict():
             return jsonify({'error': f'خطأ في التنبؤ: {str(predict_error)}'}), 500
         
         # فحص التنبيهات وإرسال تيليغرام مع الصورة
-        is_alert = posture in ['سقوط', 'ممدد'] and confidence > 0.6
+        no_alert = request.form.get('no_alert') == 'true'
+        is_alert = posture in ['سقوط', 'ممدد'] and confidence > 0.6 and not no_alert
         
         if is_alert:
             print(f"⚠️ تم اكتشاف تنبيه: {posture}")
