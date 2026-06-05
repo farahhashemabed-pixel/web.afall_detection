@@ -295,18 +295,59 @@ predictBtn.addEventListener('click', async function() {
                 }
             }
         }
+
+        const formData = new FormData();
         
-        if (!response.ok) {
-            throw new Error(data.error || 'خطأ في المعالجة');
+        if (isVideo) {
+            formData.append('file', file);
+            const response = await fetch('/api/predict_video', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'خطأ في معالجة الفيديو');
+            displayResult(data);
+        } else {
+            // للتأكد من اكتمال تحميل الصورة للمعاينة
+            if (!imagePreview.complete || imagePreview.naturalWidth === 0) {
+                await new Promise((resolve) => {
+                    imagePreview.onload = resolve;
+                });
+            }
+            
+            // تشغيل كشف الوضعيات محلياً ورسم الهيكل والصناديق
+            const tempCanvas = document.createElement('canvas');
+            const analysis = await processPoseOnCanvas(imagePreview, tempCanvas);
+            
+            // استبدال المعاينة بالصورة المرسوم عليها تفصيلياً
+            imagePreview.src = tempCanvas.toDataURL('image/jpeg', 0.85);
+            
+            // تحويل الكانفاس لملف وإرساله للسيرفر
+            await new Promise((resolve, reject) => {
+                tempCanvas.toBlob(async (blob) => {
+                    if (!blob) {
+                        reject(new Error("فشل رسم وتحليل الصورة"));
+                        return;
+                    }
+                    formData.append('file', blob, 'uploaded_frame.jpg');
+                    formData.append('posture', analysis.posture);
+                    formData.append('confidence', `${(analysis.confidence * 100).toFixed(1)}%`);
+                    
+                    try {
+                        const response = await fetch('/api/predict', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await response.json();
+                        if (!response.ok) throw new Error(data.error || 'خطأ في معالجة الصورة');
+                        displayResult(data);
+                        resolve();
+                    } catch (err) {
+                        reject(err);
+                    }
+                }, 'image/jpeg', 0.85);
+            });
         }
-        
-        // إذا رجعت صورة معالجة، اعرضها في المعاينة لتوضيح صندوق الاكتشاف
-        if (data.processed_image) {
-            imagePreview.src = `data:image/jpeg;base64,${data.processed_image}`;
-        }
-        
-        // ✅ عرض النتيجة بشكل جميل
-        displayResult(data);
     } catch (error) {
         showError(error.message);
     } finally {
