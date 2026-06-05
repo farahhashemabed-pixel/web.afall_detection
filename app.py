@@ -164,7 +164,7 @@ def predict():
         print(f"❌ خطأ غير متوقع: {str(e)}")
         print(traceback.format_exc())
         return jsonify({'error': f'خطأ في المعالجة: {str(e)}'}), 500
-
+@app.route('/api/predict_video', methods=['POST'])
 def predict_video():
     """ØªØ­ÙÙÙ ÙÙØ¯ÙÙ Ø¨Ø£Ø®Ø° ÙØ±ÙÙØ§Øª ÙÙ 15 Ø«Ø§ÙÙØ©"""
     print("=" * 50)

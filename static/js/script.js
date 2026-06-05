@@ -199,6 +199,57 @@ async function captureAndAnalyzeFrame() {
 }
 
 // ==================== 3. معالجة تحميل الملف (صورة / فيديو) ====================
+const videoPreview = document.getElementById('videoPreview');
+const previewTitle = document.getElementById('previewTitle');
+
+function isFileVideo(file) {
+    if (file.type && file.type.startsWith('video/')) {
+        return true;
+    }
+    const ext = file.name.split('.').pop().toLowerCase();
+    const videoExts = ['mp4', 'avi', 'mov', 'mkv'];
+    return videoExts.includes(ext);
+}
+
+function previewFile(file) {
+    if (!file) return;
+    
+    if (isFileVideo(file)) {
+        // معاينة الفيديو
+        imagePreview.style.display = 'none';
+        imagePreview.src = '';
+        
+        videoPreview.src = URL.createObjectURL(file);
+        videoPreview.style.display = 'block';
+        imagePreviewContainer.style.display = 'block';
+        if (previewTitle) {
+            previewTitle.innerHTML = '<i class="fas fa-video"></i> معاينة الفيديو المرفوع';
+        }
+    } else if (file.type && file.type.startsWith('image/')) {
+        // معاينة الصورة
+        videoPreview.style.display = 'none';
+        videoPreview.src = '';
+        
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            imagePreview.src = ev.target.result;
+            imagePreview.style.display = 'block';
+            imagePreviewContainer.style.display = 'block';
+            if (previewTitle) {
+                previewTitle.innerHTML = '<i class="fas fa-image"></i> معاينة الصورة المرفوعة';
+            }
+        };
+        reader.readAsDataURL(file);
+    } else {
+        // إخفاء المعاينات
+        imagePreviewContainer.style.display = 'none';
+        imagePreview.style.display = 'none';
+        imagePreview.src = '';
+        videoPreview.style.display = 'none';
+        videoPreview.src = '';
+    }
+}
+
 fileInput.addEventListener('change', function(e) {
     if (e.target.files.length > 0) {
         const file = e.target.files[0];
@@ -210,19 +261,7 @@ fileInput.addEventListener('change', function(e) {
         predictBtn.disabled = false;
         errorDiv.classList.remove('show');
         
-        // ✅ معاينة فقط إذا كان الملف صورة
-        if (file.type && file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = function(ev) {
-                imagePreview.src = ev.target.result;
-                imagePreviewContainer.style.display = 'block';
-            };
-            reader.readAsDataURL(file);
-        } else {
-            // إخفاء المعاينة في حالة الفيديو
-            imagePreviewContainer.style.display = 'none';
-            imagePreview.src = '';
-        }
+        previewFile(file);
     }
 });
 
@@ -254,18 +293,7 @@ fileLabel.addEventListener('drop', function(e) {
         predictBtn.disabled = false;
         errorDiv.classList.remove('show');
         
-        // ✅ معاينة فقط إذا كان الملف صورة
-        if (file.type && file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = function(ev) {
-                imagePreview.src = ev.target.result;
-                imagePreviewContainer.style.display = 'block';
-            };
-            reader.readAsDataURL(file);
-        } else {
-            imagePreviewContainer.style.display = 'none';
-            imagePreview.src = '';
-        }
+        previewFile(file);
     }
 });
 
@@ -278,6 +306,8 @@ predictBtn.addEventListener('click', async function() {
 
     const file = fileInput.files[0];
     loader.classList.add('show');
+    const loaderText = document.querySelector('.loader-text');
+    if (loaderText) loaderText.textContent = '⏳ جاري تحليل الملف...';
     resultContainer.classList.remove('show');
     errorDiv.classList.remove('show');
     predictBtn.disabled = true;
@@ -299,14 +329,150 @@ predictBtn.addEventListener('click', async function() {
         const formData = new FormData();
         
         if (isVideo) {
-            formData.append('file', file);
-            const response = await fetch('/api/predict_video', {
-                method: 'POST',
-                body: formData
+            initPose();
+            
+            if (loaderText) loaderText.textContent = '⏳ جاري بدء معالجة الفيديو محلياً...';
+            
+            const tempVideo = document.createElement('video');
+            tempVideo.src = URL.createObjectURL(file);
+            tempVideo.muted = true;
+            tempVideo.playsInline = true;
+            
+            await new Promise((resolve, reject) => {
+                tempVideo.onloadedmetadata = resolve;
+                tempVideo.onerror = () => reject(new Error('عجز المتصفح عن قراءة هذا الفيديو. تأكد من أن صيغته مدعومة.'));
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'خطأ في معالجة الفيديو');
-            displayResult(data);
+            
+            const duration = tempVideo.duration;
+            const interval = 0.5; // Every 0.5 seconds as requested by the user
+            const times = [];
+            for (let t = 0.1; t <= duration; t += interval) {
+                times.push(t);
+            }
+            
+            // Limit to e.g., max 60 seconds of video to avoid long processing (120 frames max)
+            const maxFrames = 120;
+            const sampledTimes = times.slice(0, maxFrames);
+            const totalFrames = sampledTimes.length;
+            
+            const detectedEvents = [];
+            let highestRisk = null;
+            
+            for (let i = 0; i < totalFrames; i++) {
+                const timeSec = sampledTimes[i];
+                
+                if (loaderText) {
+                    const percent = Math.round((i / totalFrames) * 100);
+                    loaderText.textContent = `⏳ جاري تحليل الفيديو... تم معالجة ${i} من ${totalFrames} لقطة (${percent}%)`;
+                }
+                
+                tempVideo.currentTime = timeSec;
+                await new Promise((resolve) => {
+                    tempVideo.onseeked = resolve;
+                });
+                
+                const frameCanvas = document.createElement('canvas');
+                const analysis = await processPoseOnCanvas(tempVideo, frameCanvas);
+                
+                const dataUrl = frameCanvas.toDataURL('image/jpeg', 0.6);
+                const base64Str = dataUrl.split(',')[1];
+                
+                const event = {
+                    time_sec: parseFloat(timeSec.toFixed(1)),
+                    posture: analysis.posture,
+                    confidence: analysis.confidence,
+                    image_data: base64Str
+                };
+                
+                detectedEvents.push(event);
+                
+                if (analysis.posture === 'سقوط' || analysis.posture === 'ممدد') {
+                    if (!highestRisk || analysis.confidence > highestRisk.confidence) {
+                        highestRisk = {
+                            time_sec: event.time_sec,
+                            posture: analysis.posture,
+                            confidence: analysis.confidence,
+                            canvas: frameCanvas,
+                            image_data: base64Str
+                        };
+                    }
+                }
+            }
+            
+            // Determine overall posture
+            let overallPosture = 'واقف';
+            let overallConfidence = 0.95;
+            
+            const fallFrames = detectedEvents.filter(e => e.posture === 'سقوط');
+            const lyingFrames = detectedEvents.filter(e => e.posture === 'ممدد');
+            const sittingFrames = detectedEvents.filter(e => e.posture === 'جالس');
+            
+            if (fallFrames.length > 0) {
+                overallPosture = 'سقوط';
+                overallConfidence = Math.max(...fallFrames.map(f => f.confidence));
+            } else if (lyingFrames.length > 0) {
+                overallPosture = 'ممدد';
+                overallConfidence = Math.max(...lyingFrames.map(f => f.confidence));
+            } else if (sittingFrames.length > 0) {
+                overallPosture = 'جالس';
+                overallConfidence = Math.max(...sittingFrames.map(f => f.confidence));
+            } else {
+                overallPosture = 'واقف';
+                const standingFrames = detectedEvents.filter(e => e.posture === 'واقف');
+                if (standingFrames.length > 0) {
+                    overallConfidence = Math.max(...standingFrames.map(f => f.confidence));
+                }
+            }
+            
+            const isAlert = (overallPosture === 'سقوط' || overallPosture === 'ممدد') && overallConfidence > 0.6;
+            
+            const getPostureDescriptionJS = (posture) => {
+                const descriptions = {
+                    'جالس': '👤 الشخص في وضعية جلوس - وضع آمن وطبيعي',
+                    'واقف': '🚶 الشخص في وضعية وقوف - وضع آمن وطبيعي',
+                    'ممدد': '🛏️ الشخص في وضعية استلقاء',
+                    'سقوط': '⚠️ تم اكتشاف سقوط محتمل في الفيديو - اتصل بالمساعدة فوراً!',
+                    'لم يتم كشف شخص': 'لم يتم كشف أي شخص في إطارات الفيديو.'
+                };
+                return descriptions[posture] || 'وضعية آمنة';
+            };
+            
+            const finalData = {
+                status: 'success',
+                posture: overallPosture,
+                confidence: `${(overallConfidence * 100).toFixed(2)}%`,
+                is_alert: isAlert,
+                alert_message: isAlert ? '⚠️ تنبيه في الفيديو!' : '✅ لا يوجد سقوط واضح في الفيديو',
+                description: getPostureDescriptionJS(overallPosture) + (highestRisk ? ` (وقت الاكتشاف التقريبي: ${highestRisk.time_sec} ثانية)` : ''),
+                events: detectedEvents,
+                frames_count: detectedEvents.length
+            };
+            
+            displayResult(finalData);
+            URL.revokeObjectURL(tempVideo.src);
+            
+            if (isAlert && highestRisk) {
+                try {
+                    highestRisk.canvas.toBlob(async (blob) => {
+                        if (!blob) return;
+                        const fd = new FormData();
+                        fd.append('file', blob, 'video_fall_frame.jpg');
+                        fd.append('posture', highestRisk.posture);
+                        fd.append('confidence', `${(highestRisk.confidence * 100).toFixed(1)}%`);
+                        
+                        fetch('/api/predict', {
+                            method: 'POST',
+                            body: fd
+                        }).then(r => r.json()).then(res => {
+                            console.log("Background Telegram alert sent successfully:", res);
+                        }).catch(err => {
+                            console.error("Failed to send background alert:", err);
+                        });
+                    }, 'image/jpeg', 0.85);
+                } catch (tgErr) {
+                    console.error("Error preparing background alert:", tgErr);
+                }
+            }
         } else {
             // للتأكد من اكتمال تحميل الصورة للمعاينة
             if (!imagePreview.complete || imagePreview.naturalWidth === 0) {
@@ -520,6 +686,11 @@ resetBtn.addEventListener('click', function() {
     
     // إخفاء المعاينة والنتائج
     imagePreviewContainer.style.display = 'none';
+    imagePreview.style.display = 'none';
+    imagePreview.src = '';
+    videoPreview.style.display = 'none';
+    videoPreview.src = '';
+    
     resultContainer.classList.remove('show');
     loader.classList.remove('show');
     errorDiv.classList.remove('show');

@@ -93,12 +93,13 @@
 
             <!-- ==================== IMAGE PREVIEW ==================== -->
             <div class="image-preview-container" id="imagePreviewContainer" style="display: none;">
-                <div class="preview-title">
+                <div class="preview-title" id="previewTitle">
                     <i class="fas fa-image"></i>
-                    معاينة الصورة المرفوعة
+                    معاينة الملف المرفوع
                 </div>
                 <div class="preview-content">
-                    <img id="imagePreview" class="preview-image" />
+                    <img id="imagePreview" class="preview-image" style="display: none;" />
+                    <video id="videoPreview" class="preview-image" controls style="display: none; width: 100%; max-height: 400px; border-radius: 10px;"></video>
                 </div>
             </div>
 
