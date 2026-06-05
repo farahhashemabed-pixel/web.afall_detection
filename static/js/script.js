@@ -399,29 +399,27 @@ predictBtn.addEventListener('click', async function() {
                 }
             }
             
-            // Determine overall posture
-            let overallPosture = 'واقف';
-            let overallConfidence = 0.95;
+            // Determine overall posture based on the most frequent posture (majority vote)
+            const counts = {};
+            detectedEvents.forEach(e => {
+                counts[e.posture] = (counts[e.posture] || 0) + 1;
+            });
             
-            const fallFrames = detectedEvents.filter(e => e.posture === 'سقوط');
-            const lyingFrames = detectedEvents.filter(e => e.posture === 'ممدد');
-            const sittingFrames = detectedEvents.filter(e => e.posture === 'جالس');
-            
-            if (fallFrames.length > 0) {
-                overallPosture = 'سقوط';
-                overallConfidence = Math.max(...fallFrames.map(f => f.confidence));
-            } else if (lyingFrames.length > 0) {
-                overallPosture = 'ممدد';
-                overallConfidence = Math.max(...lyingFrames.map(f => f.confidence));
-            } else if (sittingFrames.length > 0) {
-                overallPosture = 'جالس';
-                overallConfidence = Math.max(...sittingFrames.map(f => f.confidence));
-            } else {
-                overallPosture = 'واقف';
-                const standingFrames = detectedEvents.filter(e => e.posture === 'واقف');
-                if (standingFrames.length > 0) {
-                    overallConfidence = Math.max(...standingFrames.map(f => f.confidence));
+            let overallPosture = 'غير معروف';
+            let maxCount = -1;
+            for (const post in counts) {
+                if (counts[post] > maxCount) {
+                    maxCount = counts[post];
+                    overallPosture = post;
                 }
+            }
+            
+            // Average confidence for the overall posture
+            const matchingFrames = detectedEvents.filter(e => e.posture === overallPosture);
+            let overallConfidence = 0.95;
+            if (matchingFrames.length > 0) {
+                const sumConf = matchingFrames.reduce((sum, f) => sum + f.confidence, 0);
+                overallConfidence = sumConf / matchingFrames.length;
             }
             
             const isAlert = (overallPosture === 'سقوط' || overallPosture === 'ممدد') && overallConfidence > 0.6;
