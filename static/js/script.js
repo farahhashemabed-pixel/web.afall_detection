@@ -344,7 +344,7 @@ predictBtn.addEventListener('click', async function() {
             });
             
             const duration = tempVideo.duration;
-            const interval = 0.5; // Every 0.5 seconds as requested by the user
+            const interval = 2.0; // Every 2.0 seconds as requested by the user
             const times = [];
             for (let t = 0.1; t <= duration; t += interval) {
                 times.push(t);
