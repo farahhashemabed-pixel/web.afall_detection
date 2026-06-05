@@ -372,7 +372,44 @@ predictBtn.addEventListener('click', async function() {
                 });
                 
                 const frameCanvas = document.createElement('canvas');
-                const analysis = await processPoseOnCanvas(tempVideo, frameCanvas);
+                let analysis = await processPoseOnCanvas(tempVideo, frameCanvas);
+                
+                // Fallback to server if MediaPipe fails to detect a person (confidence is 0)
+                if (!analysis || analysis.confidence === 0 || analysis.posture === 'لم يتم كشف شخص' || analysis.posture === 'غير معروف') {
+                    try {
+                        const blob = await new Promise(resolve => frameCanvas.toBlob(resolve, 'image/jpeg', 0.8));
+                        if (blob) {
+                            const fd = new FormData();
+                            fd.append('file', blob, 'fallback_frame.jpg');
+                            const resp = await fetch('/api/predict', { method: 'POST', body: fd });
+                            const data = await resp.json();
+                            if (resp.ok && data.posture) {
+                                analysis = {
+                                    posture: data.posture,
+                                    confidence: parseFloat(data.confidence) / 100.0
+                                };
+                                
+                                // Draw the server-side prediction on the canvas so it shows up in the gallery
+                                const ctx = frameCanvas.getContext('2d');
+                                ctx.save();
+                                ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+                                ctx.fillRect(0, 0, frameCanvas.width, frameCanvas.height);
+                                
+                                let color = "rgb(16, 185, 129)"; // Green for normal
+                                if (analysis.posture === 'جالس') color = "rgb(245, 158, 11)"; // Orange
+                                else if (analysis.posture === 'سقوط' || analysis.posture === 'ممدد') color = "rgb(239, 68, 68)"; // Red
+                                
+                                ctx.fillStyle = color;
+                                ctx.font = "bold 16px sans-serif";
+                                ctx.textAlign = "center";
+                                ctx.fillText(`تحليل الخادم: ${analysis.posture}`, frameCanvas.width / 2, frameCanvas.height / 2);
+                                ctx.restore();
+                            }
+                        }
+                    } catch (err) {
+                        console.log("Server fallback failed for frame:", err);
+                    }
+                }
                 
                 const dataUrl = frameCanvas.toDataURL('image/jpeg', 0.6);
                 const base64Str = dataUrl.split(',')[1];
