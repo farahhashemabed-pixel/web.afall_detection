@@ -111,6 +111,11 @@ function stopCamera() {
     isAnalyzing = false;
     
     webcamVideo.style.display = 'none';
+    const processedImg = document.getElementById('webcamProcessedImg');
+    if (processedImg) {
+        processedImg.style.display = 'none';
+        processedImg.src = '';
+    }
     cameraPlaceholder.style.display = 'block';
     cameraOverlay.style.display = 'none';
     
@@ -153,6 +158,16 @@ async function captureAndAnalyzeFrame() {
                     cameraOverlay.style.background = 'rgba(239, 68, 68, 0.9)'; // أحمر
                 } else {
                     cameraOverlay.style.background = 'rgba(16, 185, 129, 0.9)'; // أخضر
+                }
+                
+                // عرض الصورة المعالجة بالصندوق وإخفاء الفيديو الأصلي
+                if (data.processed_image) {
+                    const processedImg = document.getElementById('webcamProcessedImg');
+                    if (processedImg) {
+                        processedImg.src = `data:image/jpeg;base64,${data.processed_image}`;
+                        processedImg.style.display = 'block';
+                        webcamVideo.style.display = 'none';
+                    }
                 }
             }
         } catch (err) {
@@ -284,6 +299,11 @@ predictBtn.addEventListener('click', async function() {
         
         if (!response.ok) {
             throw new Error(data.error || 'خطأ في المعالجة');
+        }
+        
+        // إذا رجعت صورة معالجة، اعرضها في المعاينة لتوضيح صندوق الاكتشاف
+        if (data.processed_image) {
+            imagePreview.src = `data:image/jpeg;base64,${data.processed_image}`;
         }
         
         // ✅ عرض النتيجة بشكل جميل

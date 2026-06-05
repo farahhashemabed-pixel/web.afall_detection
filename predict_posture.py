@@ -161,17 +161,17 @@ class PosturePredictor:
             return self._analyze_posture_advanced_internal(img)
         except Exception as e:
             safe_print(f"Error in analysis: {e}")
-            return None, 0
+            return None, 0, None
 
     def _analyze_posture_advanced_internal(self, img):
         """التحليل المنطقي المتقدم للمصفوفة"""
         try:
             if img is None:
-                return None, 0
+                return None, 0, None
             
             body_info = self._detect_body_parts_internal(img)
             if body_info is None:
-                return None, 0
+                return None, 0, img.copy()
             
             height = body_info['height']
             width = body_info['width']
@@ -197,37 +197,15 @@ class PosturePredictor:
             # 5️⃣ موضع المركز العمودي
             center_y_ratio = body_info['center_y'] / img_height
             
-            # ==================== قواعد التصنيف المتقدمة (للجلوس والوقوف والسقوط) ====================
-            
-            x, y, w, h = body_info['left'], body_info['top'], body_info['width'], body_info['height']
-            
-            # 1. تحليل الملف العامودي (Vertical Profile) لتمييز الجلوس الجانبي
-            # تقسيم الجسم لثلاثة أجزاء: علوي (ظهر)، أوسط (حوض)، سفلي (أقدام)
-            roi = gray[y:y+h, x:x+w]
-            h_third = h // 3 if h > 0 else 0
-            
-            # حساب العرض التقريبي لكل جزء
-            if h_third > 0:
-                top_part = roi[0:h_third, :]
-                mid_part = roi[h_third:2*h_third, :]
-                bot_part = roi[2*h_third:h, :]
-                
-                top_width = np.sum(cv2.reduce(top_part, 0, cv2.REDUCE_MAX)) / 255
-                mid_width = np.sum(cv2.reduce(mid_part, 0, cv2.REDUCE_MAX)) / 255
-                bot_width = np.sum(cv2.reduce(bot_part, 0, cv2.REDUCE_MAX)) / 255
-            else:
-                top_width = mid_width = bot_width = width
-
             # ==================== قواعد التصنيف المحدثة والنهائية (3 حالات فقط) ====================
             
-            # 1. الوقوف والمشي: جعلنا الشرط صارماً جداً للوقوف (يجب أن يكون نحيفاً جداً)
-            # إذا زاد العرض عن 45% من الطول، فغالباً الشخص في وضعية جلوس (بروز الركب)
-            if aspect_ratio < 0.45: 
+            # 1. الوقوف والمشي: تم رفع النسبة لتصبح 0.55 بدلاً من 0.45 لتناسب الثياب الواسعة كالثوب الأبيض وحركة المشي
+            if aspect_ratio < 0.55: 
                 posture = 'واقف'
                 confidence = 0.95
             
             # 2. الجالس (أمامي أو جانبي): أي عرض متوسط يميل للجلوس
-            elif 0.45 <= aspect_ratio < 1.10:
+            elif 0.55 <= aspect_ratio < 1.10:
                 posture = 'جالس'
                 confidence = 0.92
             
@@ -242,12 +220,41 @@ class PosturePredictor:
             # طباعة للتشخيص في سجلات الموقع
             print(f"DIAGNOSTIC: Aspect_Ratio={aspect_ratio:.2f} -> Result: {posture}")
             
-            return posture, confidence
+            # ==================== رسم صندوق الاكتشاف والبيانات مرئياً ====================
+            processed_img = img.copy()
             
-            return posture, confidence
+            bx, by, bw, bh = body_info['left'], body_info['top'], body_info['width'], body_info['height']
+            
+            # اختيار اللون بناء على الوضعية
+            if posture == 'سقوط':
+                color = (0, 0, 255)  # أحمر في BGR
+            elif posture == 'جالس':
+                color = (0, 165, 255)  # برتقالي/أصفر في BGR
+            else:
+                color = (0, 255, 0)  # أخضر في BGR
+            
+            # رسم مستطيل صندوق الاكتشاف
+            cv2.rectangle(processed_img, (bx, by), (bx + bw, by + bh), color, 3)
+            
+            # كتابة النص الإنجليزي لتجنب مشاكل ترميز اللغة العربية في OpenCV
+            eng_posture = "Standing" if posture == 'واقف' else ("Sitting" if posture == 'جالس' else "FALLEN")
+            label_text = f"{eng_posture} ({confidence*100:.1f}%) AR:{aspect_ratio:.2f}"
+            
+            # رسم خلفية للنص لتسهيل قراءته
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.6
+            thickness = 2
+            (text_w, text_h), baseline = cv2.getTextSize(label_text, font, font_scale, thickness)
+            
+            text_y = max(by - 10, text_h + 10)
+            cv2.rectangle(processed_img, (bx, text_y - text_h - 5), (bx + text_w, text_y + baseline - 5), color, -1)
+            cv2.putText(processed_img, label_text, (bx, text_y - 2), font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
+            
+            return posture, confidence, processed_img
         
-        except Exception:
-            return None, 0
+        except Exception as e:
+            safe_print(f"Error in _analyze_posture_advanced_internal: {e}")
+            return None, 0, img.copy() if img is not None else None
     
     def predict_image(self, image_input):
         """التنبؤ بوضعية الشخص - يدعم مسار صورة أو مصفوفة numpy مباشرة"""
@@ -258,13 +265,13 @@ class PosturePredictor:
                 img = image_input
 
             if img is None:
-                return None, 0
+                return None, 0, None
             
             # التحليل المنطقي المباشر (Heuristics)
             return self.analyze_posture_advanced(img)
         
         except Exception:
-            return None, 0
+            return None, 0, None
     
     def check_fall_alert(self, posture, confidence):
         """فحص التنبيهات"""
@@ -275,7 +282,7 @@ class PosturePredictor:
 def predict_from_file(image_path):
     """دالة للتنبؤ"""
     predictor = PosturePredictor()
-    posture, confidence = predictor.predict_image(image_path)
+    posture, confidence, _ = predictor.predict_image(image_path)
     
     if posture is None:
         return {
