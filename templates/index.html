@@ -319,15 +319,15 @@
             <div style="background:#f8faff; border-radius:10px; padding:14px; margin-bottom:10px;">
                 <p><strong>🤖 كيف يعمل النظام:</strong></p>
                 <p>1️⃣ يلتقط الكاميرا أو الصورة أو الفيديو</p>
-                <p>2️⃣ يحلل وضعية الشخص باستخدام الذكاء الاصطناعي</p>
-                <p>3️⃣ يصنّف الوضعية: جلوس / وقوف / سقوط</p>
+                <p>2️⃣ يحدد الهيكل العظمي والمفاصل (تتبع 33 نقطة للجسم) عبر MediaPipe Pose</p>
+                <p>3️⃣ يحلل ويصنّف الوضعية باستخدام الذكاء الاصطناعي: جلوس / وقوف / سقوط</p>
                 <p>4️⃣ عند اكتشاف سقوط يرسل تنبيهاً فورياً على تيليغرام</p>
             </div>
             <hr style="margin: 15px 0; border-color: #e2e8f0;">
-            <p><strong>🤖 النموذج المستخدم:</strong> MobileNetV2 (CNN)</p>
+            <p><strong>🤖 الخوارزمية والنموذج:</strong> MediaPipe Pose (لتتبع المفاصل) + MobileNetV2 (CNN)</p>
             <p><strong>📊 الفئات المصنّفة:</strong> وقوف — جلوس — سقوط</p>
             <p><strong>🎯 دقة النموذج:</strong> أكثر من 95%</p>
-            <p><strong>🌐 تقنيات التطوير:</strong> Python · Flask · TensorFlow · OpenCV</p>
+            <p><strong>🌐 تقنيات التطوير:</strong> Python · Flask · TensorFlow · OpenCV · MediaPipe JS</p>
             <hr style="margin: 15px 0; border-color: #e2e8f0;">
             <p><strong>👩‍💻 المطورة:</strong> فرح هاشم عبد</p>
             <p><strong>🎓 الجهة:</strong> جامعة التكنولوجيا — كلية علوم الحاسوب / قسم الذكاء الاصطناعي</p>
