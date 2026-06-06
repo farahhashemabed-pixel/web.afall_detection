@@ -130,28 +130,17 @@ class PostureDetectionModel:
         """بناء نموذج CNN"""
         print("\n🤖 جاري بناء النموذج...")
         
-        base_model = keras.applications.MobileNetV2(
-            input_shape=(IMG_SIZE, IMG_SIZE, 3),
-            include_top=False,
-            weights='imagenet'
-        )
-        
-        # السماح بتدريب آخر 30 طبقة من MobileNetV2 لتحسين الدقة (Fine-tuning)
-        base_model.trainable = True
-        for layer in base_model.layers[:-30]:
-            layer.trainable = False
-        
+
         self.model = models.Sequential([
-            base_model,
+            layers.Conv2D(32, (3,3), activation='relu', input_shape=(IMG_SIZE, IMG_SIZE, 3)),
+            layers.MaxPooling2D(pool_size=(2,2)),
+            layers.Conv2D(64, (3,3), activation='relu'),
+            layers.MaxPooling2D(pool_size=(2,2)),
+            layers.Conv2D(128, (3,3), activation='relu'),
             layers.GlobalAveragePooling2D(),
-            layers.Dense(512, activation='relu'),
-            layers.BatchNormalization(),
-            layers.Dropout(0.5),
             layers.Dense(256, activation='relu'),
             layers.BatchNormalization(),
-            layers.Dropout(0.4),
-            layers.Dense(128, activation='relu'),
-            layers.Dropout(0.3),
+            layers.Dropout(0.5),
             layers.Dense(len(self.classes), activation='softmax')
         ])
         

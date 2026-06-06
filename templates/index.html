@@ -35,16 +35,8 @@
                 
                 <div class="header-stats">
                     <div class="stat-box">
-                        <div class="stat-number">3</div>
-                        <div class="stat-label">وضعيات مكتشفة</div>
-                    </div>
-                    <div class="stat-box">
                         <div class="stat-number">99.2%</div>
                         <div class="stat-label">دقة النموذج</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-number">AI</div>
-                        <div class="stat-label">ذكاء اصطناعي</div>
                     </div>
                     <div class="stat-box">
                         <div class="stat-number">24/7</div>
@@ -152,7 +144,7 @@
                 <div class="features-grid">
                     <div class="feature-item">
                         <i class="fas fa-brain"></i>
-                        <span>ذكاء اصطناعي متقدم</span>
+                        <span>رؤية حاسوبية متقدمة</span>
                     </div>
                     <div class="feature-item">
                         <i class="fas fa-bolt"></i>
@@ -313,25 +305,48 @@
             <button onclick="closeModal()">✕</button>
         </div>
         <div class="modal-body">
-            <h4>🏥 نظام مراقبة كبار السن للكشف عن السقوط</h4>
-            <p>نظام ذكي يعتمد على الرؤية الحاسوبية والذكاء الاصطناعي لمراقبة كبار السن والكشف الفوري عن حالات السقوط. يدعم تحليل الصور والفيديو والكاميرا المباشرة، ويرسل إشعارات تيليغرام فورية عند اكتشاف سقوط أو وضعية خطرة.</p>
+            <h4>🏥 نظام كشف السقوط لكبار السن باستخدام الرؤية الحاسوبية</h4>
+            <p style="font-size: 13px; font-weight: bold; color: #4b5563; margin-bottom: 12px; direction: ltr; text-align: left; line-height: 1.4;">
+                A fall detection system for elderly people using computer vision to classify standing, sitting, and lying positions
+            </p>
+            <p>مشروع تخرج مقدم إلى كلية علوم الحاسوب / قسم الذكاء الاصطناعي في الجامعة التكنولوجية كجزء من متطلبات نيل درجة البكالوريوس في علوم الحاسوب / ذكاء اصطناعي.</p>
             <hr style="margin: 15px 0; border-color: #e2e8f0;">
             <div style="background:#f8faff; border-radius:10px; padding:14px; margin-bottom:10px;">
-                <p><strong>🤖 كيف يعمل النظام:</strong></p>
-                <p>1️⃣ يلتقط الكاميرا أو الصورة أو الفيديو</p>
-                <p>2️⃣ يحدد الهيكل العظمي والمفاصل (تتبع 33 نقطة للجسم) عبر MediaPipe Pose</p>
-                <p>3️⃣ يحلل ويصنّف الوضعية باستخدام الذكاء الاصطناعي: جلوس / وقوف / سقوط</p>
-                <p>4️⃣ عند اكتشاف سقوط يرسل تنبيهاً فورياً على تيليغرام</p>
+                <p><strong>📝 ملخص المشروع (Abstract):</strong></p>
+                <p style="font-size: 13.5px; line-height: 1.7; text-align: justify;">
+                    يعتبر هذا النظام حلاً متكاملاً لمراقبة كبار السن يعتمد على تقنية MediaPipe Pose لتتبع 33 نقطة من المفاصل وتحليل الزوايا الهندسية لتحديد الوضعية (الوقوف، الجلوس، السقوط). يتم تحليل الفيديو المباشر من الكاميرا كل 0.5 ثانية، وعند اكتشاف سقوط يتم إرسال تنبيه فوري عبر تيليغرام مع صورة الإطار المشتبه به.
+                </p>
             </div>
             <hr style="margin: 15px 0; border-color: #e2e8f0;">
-            <p><strong>🤖 الخوارزمية والنموذج:</strong> MediaPipe Pose (لتتبع المفاصل) + MobileNetV2 (CNN)</p>
-            <p><strong>📊 الفئات المصنّفة:</strong> وقوف — جلوس — سقوط</p>
-            <p><strong>🎯 دقة النموذج:</strong> أكثر من 95%</p>
-            <p><strong>🌐 تقنيات التطوير:</strong> Python · Flask · TensorFlow · OpenCV · MediaPipe JS</p>
-            <hr style="margin: 15px 0; border-color: #e2e8f0;">
-            <p><strong>👩‍💻 المطورة:</strong> فرح هاشم عبد</p>
-            <p><strong>🎓 الجهة:</strong> جامعة التكنولوجيا — كلية علوم الحاسوب / قسم الذكاء الاصطناعي</p>
-            <p><strong>📅 إصدار:</strong> 2026</p>
+
+<div class="site-description" style="margin-top:20px;">
+  <h4 style="color:#1e293b; margin-bottom:12px;">وصف الموقع</h4>
+  <p style="font-size:14px; line-height:1.6; color:#374151;">يعتمد النظام على MediaPipe Pose لتتبع المفاصل وتحليل الزوايا، مع إظهار مخطط الهيكل العظمي للإنسان.</p>
+  <figure style="text-align:center; margin:12px 0;">
+    <img src="https://raw.githubusercontent.com/google/mediapipe/master/docs/images/pose_landmarks.png" alt="MediaPipe Pose Skeleton" style="max-width:80%; height:auto; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+    <figcaption style="font-size:13px; color:#6b7280; margin-top:6px;">Figure 2.1 – مخطط MediaPipe Pose يوضح 33 نقطة مفصلية.</figcaption>
+  </figure>
+  <h5 style="color:#1e293b; margin-top:16px;">Table 2.1 – قائمة نقاط المفاصل (Landmarks)</h5>
+  <table style="width:100%; border-collapse:collapse; margin-top:8px;">
+    <thead>
+      <tr style="background:#f0f4ff;">
+        <th style="border:1px solid #ddd; padding:8px;">رقم النقطة</th>
+        <th style="border:1px solid #ddd; padding:8px;">الاسم (إنجليزي)</th>
+        <th style="border:1px solid #ddd; padding:8px;">الوصف</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="border:1px solid #ddd; padding:8px;">0</td><td style="border:1px solid #ddd; padding:8px;">nose</td><td style="border:1px solid #ddd; padding:8px;">الرأس</td></tr>
+      <tr><td style="border:1px solid #ddd; padding:8px;">1</td><td style="border:1px solid #ddd; padding:8px;">left_eye_inner</td><td style="border:1px solid #ddd; padding:8px;">داخل العين اليسرى</td></tr>
+      <tr><td style="border:1px solid #ddd; padding:8px;">2</td><td style="border:1px solid #ddd; padding:8px;">left_eye</td><td style="border:1px solid #ddd; padding:8px;">عين اليسرى</td></tr>
+      <!-- يمكن إضافة باقي 30 نقطة حسب الحاجة -->
+    </tbody>
+  </table>
+</div>
+            <p><strong>👨‍💻 إعداد الطلبة:</strong> فرح هاشم عبد & طه محمد حسين</p>
+            <p><strong>👨‍🏫 إشراف:</strong> أ. م. د. خليل إبراهيم غضبان</p>
+            <p><strong>🎓 الجهة:</strong> الجامعة التكنولوجية — كلية علوم الحاسوب / قسم الذكاء الاصطناعي</p>
+            <p><strong>📅 عام الدراسي:</strong> 2026</p>
         </div>
     </div>
 
@@ -388,7 +403,7 @@
             <h4>يرجى قراءة الشروط قبل الاستخدام</h4>
             <p><strong>1. الغرض من النظام:</strong><br>هذا النظام مخصص للمراقبة المساعدة فقط وليس بديلاً عن الرعاية الطبية المتخصصة.</p>
             <hr style="margin: 12px 0; border-color: #e2e8f0;">
-            <p><strong>2. دقة الكشف:</strong><br>النتائج مبنية على الذكاء الاصطناعي وقد لا تكون دقيقة 100%. يجب دائماً التحقق البشري عند أي تنبيه.</p>
+            <p><strong>2. دقة الكشف:</strong><br>النتائج مبنية على خوارزميات الرؤية الحاسوبية وقد لا تكون دقيقة 100%. يجب دائماً التحقق البشري عند أي تنبيه.</p>
             <hr style="margin: 12px 0; border-color: #e2e8f0;">
             <p><strong>3. المسؤولية:</strong><br>المطورة غير مسؤولة عن أي قرارات طبية تُتخذ بناءً على نتائج النظام وحده.</p>
             <hr style="margin: 12px 0; border-color: #e2e8f0;">
